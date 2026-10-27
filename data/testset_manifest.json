@@ -1,0 +1,362 @@
+[
+  {
+    "id": "01_desk_laptop_mouse_phone",
+    "file": "01_desk_laptop_mouse_phone.jpg",
+    "scenario": "multiple objects, desk",
+    "commons_title": "File:Computer mouse laptop and phone on a desk.jpg",
+    "source_page": "https://commons.wikimedia.org/wiki/File:Computer_mouse_laptop_and_phone_on_a_desk.jpg",
+    "download_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c6/Computer_mouse_laptop_and_phone_on_a_desk.jpg/1920px-Computer_mouse_laptop_and_phone_on_a_desk.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "original_size": [
+      3264,
+      1836
+    ],
+    "author": "Enoch Leung",
+    "credit": "Day 3.",
+    "license": "CC BY-SA 2.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/2.0",
+    "modified": "scaled by Wikimedia to 1600px width",
+    "sha256": "7e14a7d270b94b9aac9e6074600217914c6fec7041b95c1a83fbc04859e67506"
+  },
+  {
+    "id": "02_desk_setup",
+    "file": "02_desk_setup.jpg",
+    "scenario": "multiple objects, desk",
+    "commons_title": "File:Desk setup.jpg",
+    "source_page": "https://commons.wikimedia.org/wiki/File:Desk_setup.jpg",
+    "download_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b2/Desk_setup.jpg/1920px-Desk_setup.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "original_size": [
+      3264,
+      1836
+    ],
+    "author": "SuperBlobMonster",
+    "credit": "Own work",
+    "license": "CC BY-SA 3.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/3.0",
+    "modified": "scaled by Wikimedia to 1600px width",
+    "sha256": "5eb66077359a66f8605ea37e5e8efcddd563a18be076307b7f5cc11d64653d1d"
+  },
+  {
+    "id": "03_gadgets_desk",
+    "file": "03_gadgets_desk.jpg",
+    "scenario": "top view, many gadgets",
+    "commons_title": "File:Gadgets on a desk (Unsplash).jpg",
+    "source_page": "https://commons.wikimedia.org/wiki/File:Gadgets_on_a_desk_(Unsplash).jpg",
+    "download_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0d/Gadgets_on_a_desk_%28Unsplash%29.jpg/1920px-Gadgets_on_a_desk_%28Unsplash%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "original_size": [
+      4912,
+      7360
+    ],
+    "author": "Niklas Veenhuis niklasveenhuis",
+    "credit": "https://unsplash.com/photos/rhVD9wlnO_I Image at the Wayback Machine Gallery at the Wayback Machine",
+    "license": "CC0",
+    "license_url": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+    "modified": "scaled by Wikimedia to 1600px width",
+    "sha256": "326e8d9b3e2afee8fd07b0aac51b1f05ae66233868473c4938a8326d23e996c9"
+  },
+  {
+    "id": "04_half_closed_laptop",
+    "file": "04_half_closed_laptop.jpg",
+    "scenario": "partly closed / occluded laptop",
+    "commons_title": "File:Half-closed laptop (Unsplash).jpg",
+    "source_page": "https://commons.wikimedia.org/wiki/File:Half-closed_laptop_(Unsplash).jpg",
+    "download_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c8/Half-closed_laptop_%28Unsplash%29.jpg/1920px-Half-closed_laptop_%28Unsplash%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "original_size": [
+      5914,
+      3942
+    ],
+    "author": "Luca Bravo lucabravo",
+    "credit": "https://unsplash.com/photos/ujhKqutt3f0 Image at the Wayback Machine Gallery at the Wayback Machine",
+    "license": "CC0",
+    "license_url": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+    "modified": "scaled by Wikimedia to 1600px width",
+    "sha256": "07f20d59de5bfa04a71b2d2a2bd57106f02cad0da8a89a39e102a9053ebf1573"
+  },
+  {
+    "id": "05_desktop_after_work",
+    "file": "05_desktop_after_work.jpg",
+    "scenario": "multiple objects, mixed light",
+    "commons_title": "File:Desktop after work (Unsplash).jpg",
+    "source_page": "https://commons.wikimedia.org/wiki/File:Desktop_after_work_(Unsplash).jpg",
+    "download_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/99/Desktop_after_work_%28Unsplash%29.jpg/1920px-Desktop_after_work_%28Unsplash%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "original_size": [
+      5426,
+      3617
+    ],
+    "author": "Luca Bravo lucabravo",
+    "credit": "https://unsplash.com/photos/9l_326FISzk Image at the Wayback Machine Gallery at the Wayback Machine",
+    "license": "CC0",
+    "license_url": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+    "modified": "scaled by Wikimedia to 1600px width",
+    "sha256": "ce3ceb50f16addda4505eb3da03ca8cb4ef4b150e5055e87dcc3f57489b3abf0"
+  },
+  {
+    "id": "06_coffee_mug",
+    "file": "06_coffee_mug.jpg",
+    "scenario": "single cup",
+    "commons_title": "File:Coffee mug on table.jpg",
+    "source_page": "https://commons.wikimedia.org/wiki/File:Coffee_mug_on_table.jpg",
+    "download_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/eb/Coffee_mug_on_table.jpg/1920px-Coffee_mug_on_table.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "original_size": [
+      2000,
+      3008
+    ],
+    "author": "Adam S. Keck",
+    "credit": "Own work",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+    "modified": "scaled by Wikimedia to 1600px width",
+    "sha256": "694be5496fce95164dcfda2002166ba22e0dc12d776df7d656e56eaa8d590314"
+  },
+  {
+    "id": "07_mug_wooden_table",
+    "file": "07_mug_wooden_table.jpg",
+    "scenario": "single cup",
+    "commons_title": "File:Mug of Coffee on a Wooden Table (26804116318).jpg",
+    "source_page": "https://commons.wikimedia.org/wiki/File:Mug_of_Coffee_on_a_Wooden_Table_(26804116318).jpg",
+    "download_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/75/Mug_of_Coffee_on_a_Wooden_Table_%2826804116318%29.jpg/1920px-Mug_of_Coffee_on_a_Wooden_Table_%2826804116318%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "original_size": [
+      4691,
+      3127
+    ],
+    "author": "freestocks.org from Olsztyn, Poland",
+    "credit": "Mug of Coffee on a Wooden Table",
+    "license": "CC0",
+    "license_url": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+    "modified": "scaled by Wikimedia to 1600px width",
+    "sha256": "a5e8942554d2b0504f4d5ce0c8f6d04d6ed4094f5faf759942e84371180a69a0"
+  },
+  {
+    "id": "08_coffee_sets",
+    "file": "08_coffee_sets.jpg",
+    "scenario": "several similar cups",
+    "commons_title": "File:02021 0274 (2) Coffee sets.jpg",
+    "source_page": "https://commons.wikimedia.org/wiki/File:02021_0274_(2)_Coffee_sets.jpg",
+    "download_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/90/02021_0274_%282%29_Coffee_sets.jpg/1920px-02021_0274_%282%29_Coffee_sets.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "original_size": [
+      4255,
+      2884
+    ],
+    "author": "Silar",
+    "credit": "Own work",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+    "modified": "scaled by Wikimedia to 1600px width",
+    "sha256": "884987e5c10f3e3c19d4b91f0936d9ee8e74dc0e831c68c0bb46e4ff97bb7611"
+  },
+  {
+    "id": "09_iphone_desk",
+    "file": "09_iphone_desk.jpg",
+    "scenario": "phone on desk",
+    "commons_title": "File:Apple-iphone-smartphone-desk (24243796611).jpg",
+    "source_page": "https://commons.wikimedia.org/wiki/File:Apple-iphone-smartphone-desk_(24243796611).jpg",
+    "download_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e7/Apple-iphone-smartphone-desk_%2824243796611%29.jpg/1920px-Apple-iphone-smartphone-desk_%2824243796611%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "original_size": [
+      7360,
+      4912
+    ],
+    "author": "www.Pixel.la Free Stock Photos",
+    "credit": "apple-iphone-smartphone-desk",
+    "license": "CC0",
+    "license_url": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+    "modified": "scaled by Wikimedia to 1600px width",
+    "sha256": "4ec977997f9edece1b1e476c328e93d5eb5a4dfbdd15dbd614b4ea159dd7f01d"
+  },
+  {
+    "id": "10_two_smartphones",
+    "file": "10_two_smartphones.jpg",
+    "scenario": "two similar phones",
+    "commons_title": "File:Top view image of two smartphone on a wooden table, space for text, ready for mockup. Empty space. (47955056488).jpg",
+    "source_page": "https://commons.wikimedia.org/wiki/File:Top_view_image_of_two_smartphone_on_a_wooden_table,_space_for_text,_ready_for_mockup._Empty_space._(47955056488).jpg",
+    "download_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/18/Top_view_image_of_two_smartphone_on_a_wooden_table%2C_space_for_text%2C_ready_for_mockup._Empty_space._%2847955056488%29.jpg/1920px-Top_view_image_of_two_smartphone_on_a_wooden_table%2C_space_for_text%2C_ready_for_mockup._Empty_space._%2847955056488%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "original_size": [
+      4000,
+      6000
+    ],
+    "author": "Artem Beliaikin from Moscow, Russia",
+    "credit": "Top view image of two smartphone on a wooden table, space for text, ready for mockup. Empty space.",
+    "license": "CC BY 2.0",
+    "license_url": "https://creativecommons.org/licenses/by/2.0",
+    "modified": "scaled by Wikimedia to 1600px width",
+    "sha256": "0afaf1a043fedf7dc39d8b861b48331c6258cc209573c72945077d2f4718584c"
+  },
+  {
+    "id": "11_metal_bottles",
+    "file": "11_metal_bottles.jpeg",
+    "scenario": "several similar bottles",
+    "commons_title": "File:Metal Water Bottles.jpeg",
+    "source_page": "https://commons.wikimedia.org/wiki/File:Metal_Water_Bottles.jpeg",
+    "download_url": "https://upload.wikimedia.org/wikipedia/commons/4/45/Metal_Water_Bottles.jpeg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled",
+    "original_size": [
+      1024,
+      768
+    ],
+    "author": "Amraepowell",
+    "credit": "Own work",
+    "license": "CC0",
+    "license_url": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+    "modified": "scaled by Wikimedia to 1600px width",
+    "sha256": "33476e1c69b35b3de260e1dd38b54aeee0b50be9fe0e41f0c3d93b9fee0ad347"
+  },
+  {
+    "id": "12_fridge_bottles",
+    "file": "12_fridge_bottles.jpg",
+    "scenario": "bottles, cluttered / occluded",
+    "commons_title": "File:Bottles of water and a tray of ice cubes inside a fridge freezer.jpg",
+    "source_page": "https://commons.wikimedia.org/wiki/File:Bottles_of_water_and_a_tray_of_ice_cubes_inside_a_fridge_freezer.jpg",
+    "download_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4a/Bottles_of_water_and_a_tray_of_ice_cubes_inside_a_fridge_freezer.jpg/1920px-Bottles_of_water_and_a_tray_of_ice_cubes_inside_a_fridge_freezer.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "original_size": [
+      4160,
+      3120
+    ],
+    "author": "Philsacor",
+    "credit": "Own work",
+    "license": "CC0",
+    "license_url": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+    "modified": "scaled by Wikimedia to 1600px width",
+    "sha256": "62998efe52d448e7021216f18b2257137fd3db75ec947bc8eaea0b07f4b9a1bd"
+  },
+  {
+    "id": "13_round_table_books",
+    "file": "13_round_table_books.jpg",
+    "scenario": "many books",
+    "commons_title": "File:Round Table Books.jpg",
+    "source_page": "https://commons.wikimedia.org/wiki/File:Round_Table_Books.jpg",
+    "download_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c8/Round_Table_Books.jpg/1920px-Round_Table_Books.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "original_size": [
+      3024,
+      4032
+    ],
+    "author": "Rhagfyr",
+    "credit": "Own work",
+    "license": "CC0",
+    "license_url": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+    "modified": "scaled by Wikimedia to 1600px width",
+    "sha256": "2079a156a8aab7480f7c76e275e7f13eb271614d6944043c1bca1eeb80fd9235"
+  },
+  {
+    "id": "14_books_measuring_tape",
+    "file": "14_books_measuring_tape.jpg",
+    "scenario": "stacked books",
+    "commons_title": "File:Measuring tape next to a stack of books on a wooden table. (51145551839).jpg",
+    "source_page": "https://commons.wikimedia.org/wiki/File:Measuring_tape_next_to_a_stack_of_books_on_a_wooden_table._(51145551839).jpg",
+    "download_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/ca/Measuring_tape_next_to_a_stack_of_books_on_a_wooden_table._%2851145551839%29.jpg/1920px-Measuring_tape_next_to_a_stack_of_books_on_a_wooden_table._%2851145551839%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "original_size": [
+      3302,
+      4946
+    ],
+    "author": "Nenad Stojkovic",
+    "credit": "Measuring tape next to a stack of books on a wooden table.",
+    "license": "CC BY 2.0",
+    "license_url": "https://creativecommons.org/licenses/by/2.0",
+    "modified": "scaled by Wikimedia to 1600px width",
+    "sha256": "fe6ec394fb1b354130492453ea019e277a0e12a243f26ab66dcd31f792234db3"
+  },
+  {
+    "id": "15_reading_mail_night",
+    "file": "15_reading_mail_night.jpg",
+    "scenario": "low light",
+    "commons_title": "File:Reading mail at night (Unsplash).jpg",
+    "source_page": "https://commons.wikimedia.org/wiki/File:Reading_mail_at_night_(Unsplash).jpg",
+    "download_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4f/Reading_mail_at_night_%28Unsplash%29.jpg/1920px-Reading_mail_at_night_%28Unsplash%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "original_size": [
+      4896,
+      3264
+    ],
+    "author": "Jay Wennington jaywennington",
+    "credit": "https://unsplash.com/photos/loAgTdeDcIU Image at the Wayback Machine Gallery at the Wayback Machine",
+    "license": "CC0",
+    "license_url": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+    "modified": "scaled by Wikimedia to 1600px width",
+    "sha256": "d96d5910a06ccf82bfe803bbcbd6b38871c3a7f09bc46039374a4e5e67f4f190"
+  },
+  {
+    "id": "16_dark_room_mac",
+    "file": "16_dark_room_mac.jpg",
+    "scenario": "low light, laptop",
+    "commons_title": "File:Woman in a dark room looking to a mac computer.jpg",
+    "source_page": "https://commons.wikimedia.org/wiki/File:Woman_in_a_dark_room_looking_to_a_mac_computer.jpg",
+    "download_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/71/Woman_in_a_dark_room_looking_to_a_mac_computer.jpg/1920px-Woman_in_a_dark_room_looking_to_a_mac_computer.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "original_size": [
+      2560,
+      1707
+    ],
+    "author": "Beercha",
+    "credit": "Flickr: [1]",
+    "license": "CC BY 2.0",
+    "license_url": "https://creativecommons.org/licenses/by/2.0",
+    "modified": "scaled by Wikimedia to 1600px width",
+    "sha256": "48c6f3bbb73742f407a1a386cd0da3f81058a02786b0c86ebce021ee47b1ea31"
+  },
+  {
+    "id": "17_mountain_lake",
+    "file": "17_mountain_lake.jpg",
+    "scenario": "no target objects",
+    "commons_title": "File:Zagedan Lakes, Mountain cirque, Caucasus Mountains.jpg",
+    "source_page": "https://commons.wikimedia.org/wiki/File:Zagedan_Lakes,_Mountain_cirque,_Caucasus_Mountains.jpg",
+    "download_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/88/Zagedan_Lakes%2C_Mountain_cirque%2C_Caucasus_Mountains.jpg/1920px-Zagedan_Lakes%2C_Mountain_cirque%2C_Caucasus_Mountains.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "original_size": [
+      4912,
+      3264
+    ],
+    "author": "Vyacheslav Argenberg",
+    "credit": "Own work",
+    "license": "CC BY 4.0",
+    "license_url": "https://creativecommons.org/licenses/by/4.0",
+    "modified": "scaled by Wikimedia to 1600px width",
+    "sha256": "adf16715c65c5621c0fca5015612cb7a1f94de2135300640998e3870954b6ad2"
+  },
+  {
+    "id": "18_empty_coffee_shop",
+    "file": "18_empty_coffee_shop.jpg",
+    "scenario": "indoor, target objects likely absent",
+    "commons_title": "File:Empty coffee shop interior with wooden table and water skis.jpg",
+    "source_page": "https://commons.wikimedia.org/wiki/File:Empty_coffee_shop_interior_with_wooden_table_and_water_skis.jpg",
+    "download_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/cb/Empty_coffee_shop_interior_with_wooden_table_and_water_skis.jpg/1920px-Empty_coffee_shop_interior_with_wooden_table_and_water_skis.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "original_size": [
+      4096,
+      2730
+    ],
+    "author": "Drew Coffman",
+    "credit": "https://unsplash.com/photos/jUOaONoXJQk",
+    "license": "CC0",
+    "license_url": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+    "modified": "scaled by Wikimedia to 1600px width",
+    "sha256": "bcc948fee5b1ef830ed788ace96101d39d2c4d7ab4d013ae4f550d0bf591eef3"
+  },
+  {
+    "id": "19_wireless_mouse",
+    "file": "19_wireless_mouse.jpg",
+    "scenario": "single mouse",
+    "commons_title": "File:A wireless computer mouse.jpg",
+    "source_page": "https://commons.wikimedia.org/wiki/File:A_wireless_computer_mouse.jpg",
+    "download_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/77/A_wireless_computer_mouse.jpg/1920px-A_wireless_computer_mouse.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "original_size": [
+      4032,
+      3024
+    ],
+    "author": "Pixloom",
+    "credit": "https://www.pixloom.com",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+    "modified": "scaled by Wikimedia to 1600px width",
+    "sha256": "03588bfed9cd0f4fe72197d3231bab4ac7b96e21a4f8a00cb2137b1809bea447"
+  },
+  {
+    "id": "20_old_book_coffee",
+    "file": "20_old_book_coffee.jpg",
+    "scenario": "book + cup",
+    "commons_title": "File:Old book and coffee on a wooden table in the kitchen.jpg",
+    "source_page": "https://commons.wikimedia.org/wiki/File:Old_book_and_coffee_on_a_wooden_table_in_the_kitchen.jpg",
+    "download_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f7/Old_book_and_coffee_on_a_wooden_table_in_the_kitchen.jpg/1920px-Old_book_and_coffee_on_a_wooden_table_in_the_kitchen.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "original_size": [
+      4912,
+      7360
+    ],
+    "author": "Shixart1985",
+    "credit": "Own work",
+    "license": "CC BY 2.0",
+    "license_url": "https://creativecommons.org/licenses/by/2.0",
+    "modified": "scaled by Wikimedia to 1600px width",
+    "sha256": "885f70cf76a2d35a1962e8963d805204b68a79ddc42c574a961bf8a4a3e66cf8"
+  }
+]

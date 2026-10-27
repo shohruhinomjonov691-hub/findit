@@ -1,0 +1,23 @@
+# Python env and caches
+.venv/
+__pycache__/
+*.pyc
+
+# Model weights (fetch per models/MODELS.md)
+models/*.pt
+*.pt
+*.onnx
+
+# Secrets
+.env
+.env.*
+
+# Uploads, downloaded test images and run outputs
+uploads/
+data/testset/
+data/derived/
+results/
+runs/
+weights/
+
+.DS_Store
