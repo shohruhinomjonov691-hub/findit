@@ -14,7 +14,7 @@ reviewer, visual judgment, no annotated boxes, no IoU.
 | Input | images scaled by Wikimedia to 1920 px wide (one is 1024×768); model input `imgsz=640` letterbox |
 | Threshold | `conf=0.25`, default class-wise NMS |
 | Device for main numbers | CPU; MPS run once for comparison |
-| Network | `YOLO_OFFLINE=1` (set by `findit/detector.py`) |
+| Network | `YOLO_OFFLINE=1` (set by `findit/detector.py`): turns off Ultralytics' own online checks and analytics; not network isolation |
 
 Command:
 
@@ -104,14 +104,23 @@ These numbers describe this set only and can shift a lot with other photos.
 | First inference (warm disk) | 497–499 ms (3 runs) | 530–531 ms (2 runs) |
 | First inference, very first run after install | 2690 ms (1 run, disk/cache cold) | — |
 | Warm inference median (min–max), 20 images | 32.7–33.3 ms (29–37) | 62.0–62.8 ms (55–68) |
-| Whole process, 21 images incl. drawing + JPEG save | 2.16–2.18 s | 2.83 s |
-| RSS after import + model load | ~247 MB | ~282 MB |
-| Peak RSS | ~553 MB | ~698 MB |
-| MPS warm median / peak RSS | 16.9 ms / 818 MB | 24.9 ms / 896 MB |
+| `main()` elapsed¹, 21 images incl. drawing + JPEG save | 2.16–2.18 s | 2.83 s |
+| RSS after import + model load | ~247 MiB | ~282 MiB |
+| Peak RSS | ~553 MiB | ~698 MiB |
+| MPS warm median / peak RSS | 16.9 ms / 818 MiB | 24.9 ms / 896 MiB |
 
 Warm inference time is per call (`model.predict`) on a 1920 px image, including
 Ultralytics pre/post-processing; it excludes file decode, EXIF transpose,
-drawing and saving. MPS gave the same classes as CPU for YOLOv8n but used more
+drawing and saving.
+
+¹ Measured inside `main()` from argument parsing until just before `run.json`
+is written; Python start-up, module imports before `main()` and process exit
+are not included, so this is not whole-process time. The saved runs used the
+earlier field names `process_wall_s` and `rss_mb` (values are MiB: bytes / 2²⁰);
+the code now writes `main_elapsed_s` and `rss_mib`. Benchmarks were not re-run
+for this rename.
+
+MPS gave the same classes as CPU for YOLOv8n but used more
 RAM. Server numbers are not measured.
 
 ## EXIF orientation
@@ -135,10 +144,12 @@ RAM. Server numbers are not measured.
 
 - YOLOv8n is fast enough (≈33 ms CPU) but on this set misses about half of the
   target objects, including easy ones (single mouse on white, phone on a desk).
-- YOLOv8s found ~29/39 with fewer false positives at ≈62 ms CPU and ~700 MB peak
+- YOLOv8s found ~29/39 with fewer false positives at ≈62 ms CPU and ~700 MiB peak
   RSS — still fine for an upload-and-highlight flow.
-- Both fail on bottles in unusual poses and on books (stacked / small). These are
-  COCO-model limits, not something threshold tuning fixes reliably.
+- In this configuration (YOLOv8n and YOLOv8s, `conf=0.25`, these 20 images, one
+  reviewer) both missed the lying bottles and most books (stacked / small). Whether
+  that comes from the COCO-pretrained models in general, from this threshold, or
+  from this image set was not tested: no threshold sweep or other image set was run.
 - Recommendation for the Find & Highlight MVP: **YOLOv8s on CPU**, filter to the
   requested COCO class, `agnostic_nms` or per-box best-class to avoid double
   labels, and say "not found" honestly below a threshold. Keep the supported

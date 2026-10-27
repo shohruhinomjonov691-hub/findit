@@ -37,12 +37,29 @@ def load_oriented(path: Path) -> tuple[Image.Image, dict]:
     return img, meta
 
 
+def resolve_local_weights(model_path: str | Path) -> Path:
+    """Return the absolute path of an existing, readable regular weights file, or raise."""
+    text = str(model_path)
+    if "://" in text:
+        raise ValueError(f"model must be a local file, not a URL: {text}")
+    path = Path(text).expanduser().resolve()
+    if not path.is_file():
+        raise FileNotFoundError(f"model weights not found (no automatic download): {path}")
+    if not os.access(path, os.R_OK):
+        raise PermissionError(f"model weights not readable: {path}")
+    return path
+
+
 class Detector:
     """Loads the model once; call detect() for every image."""
 
     def __init__(self, model_path: Path, imgsz: int = 640, conf: float = 0.25, device: str = "cpu"):
-        # Local weights only: no network checks, downloads or usage analytics (settings "sync").
-        os.environ.setdefault("YOLO_OFFLINE", "1")
+        # Checked before importing Ultralytics: given a URL or a missing file it would
+        # download weights itself, and that path ignores YOLO_OFFLINE.
+        model_path = resolve_local_weights(model_path)
+        # Turns off Ultralytics' own online checks and usage analytics (settings "sync").
+        # This is not network isolation of the process.
+        os.environ["YOLO_OFFLINE"] = "1"
         t0 = time.perf_counter()
         from ultralytics import YOLO
 
@@ -50,7 +67,7 @@ class Detector:
         self.model = YOLO(str(model_path))
         self.import_seconds = t1 - t0
         self.load_seconds = time.perf_counter() - t1
-        self.model_path = Path(model_path)
+        self.model_path = model_path
         self.imgsz = imgsz
         self.conf = conf
         self.device = device

@@ -1,7 +1,7 @@
 """CLI: python -m findit.detect IMAGE_OR_DIR [...] --out results/run
 
 Writes <name>.json and <name>.annotated.jpg per image, plus run.json with
-model, device, cold-start/warm timing and peak RSS.
+model, device, cold-start/warm timing and RSS in MiB.
 """
 
 from __future__ import annotations
@@ -33,13 +33,15 @@ def collect(paths: list[str]) -> list[Path]:
     return files
 
 
-def peak_rss_mb() -> float:
+def peak_rss_mib() -> float:
     peak = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
     # macOS reports bytes, Linux reports kilobytes.
     return round(peak / (1024 * 1024 if sys.platform == "darwin" else 1024), 1)
 
 
 def main() -> None:
+    # Covers main() from argument parsing to just before run.json is written;
+    # interpreter start-up and module imports before main() are not included.
     t_start = time.perf_counter()
     ap = argparse.ArgumentParser()
     ap.add_argument("inputs", nargs="+")
@@ -89,13 +91,13 @@ def main() -> None:
             "min": min(warm, default=None),
             "max": max(warm, default=None),
         },
-        "rss_mb": {
+        "rss_mib": {
             "before_model": round(rss_before_model / 2**20, 1),
             "after_model": round(rss_after_model / 2**20, 1),
             "end": round(proc.memory_info().rss / 2**20, 1),
-            "peak": peak_rss_mb(),
+            "peak": peak_rss_mib(),
         },
-        "process_wall_s": round(time.perf_counter() - t_start, 2),
+        "main_elapsed_s": round(time.perf_counter() - t_start, 2),
         "per_image": per_image,
     }
     (out_dir / "run.json").write_text(json.dumps(run, indent=2))

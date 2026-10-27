@@ -54,6 +54,12 @@ only from CC0 images:
 | `11_metal_bottles_n_vs_s.jpg` | https://commons.wikimedia.org/wiki/File:Metal_Water_Bottles.jpeg | Amraepowell | CC0 |
 | `12_fridge_bottles_n_vs_s.jpg` | https://commons.wikimedia.org/wiki/File:Bottles_of_water_and_a_tray_of_ice_cubes_inside_a_fridge_freezer.jpg | Philsacor | CC0 |
 
-If a CC BY or CC BY-SA image is ever shown publicly (README, demo), it needs
-author + license + source link, and an annotated CC BY-SA derivative must itself be
-shared under CC BY-SA.
+If a CC BY or CC BY-SA image is ever shown publicly (README, demo), it needs:
+
+- author, license name with link, and source link;
+- a note that it was modified and how (e.g. "detection boxes and labels drawn,
+  resized to 800 px height, cropped"), keeping any earlier modification notice;
+- for CC BY-SA, the annotated derivative itself shared under the same CC BY-SA
+  version (or a compatible later one).
+
+See https://creativecommons.org/licenses/by-sa/4.0/ (section 3).
