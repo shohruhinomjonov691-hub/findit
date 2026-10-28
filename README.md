@@ -73,9 +73,11 @@ node --test tests/js/*.test.mjs
   keeps the security headers and that the exception text never reaches the log.
 - `tests/test_integration.py`: real YOLOv8s on a test image; skipped unless the
   weights and the git-ignored test images (`python scripts/fetch_testset.py`) exist.
-- `tests/js/`: Node unit tests (no dependencies) for the camera request guard and the
-  exact-match search in `findit/web/camera.js` and `search.js`. They use fake streams,
-  not a browser.
+- `tests/js/`: Node tests (no dependencies). `camera.test.mjs` and `search.test.mjs`
+  unit-test `findit/web/camera.js` and `search.js`; `app-camera.test.mjs` loads the
+  real `app.js` with a minimal fake DOM and drives the camera dialog through its own
+  listeners, delivering the dialog's "close" event late as browsers do. They use fake
+  streams and a fake DOM, not a browser.
 
 ## License
 

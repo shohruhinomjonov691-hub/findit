@@ -685,7 +685,12 @@
 
     $("cameraShoot").addEventListener("click", shootCamera);
     $("cameraCancel").addEventListener("click", closeCamera);
-    $("cameraDialog").addEventListener("close", closeCamera);
+    // The "close" event is delivered after dialog.close() returns. If the camera was
+    // reopened in between, the dialog is open again and the event belongs to the
+    // previous (already stopped) session, so it must not close the new one.
+    $("cameraDialog").addEventListener("close", () => {
+      if (!$("cameraDialog").open) closeCamera();
+    });
   }
 
   async function loadInfo() {
