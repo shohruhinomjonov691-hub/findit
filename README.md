@@ -63,7 +63,9 @@ mapped to a similar class.
 Privacy: images are processed in memory and never written to disk. The app logs no
 image data, file names, client data or exception messages (unexpected request errors are
 logged only as `server_error`); start uvicorn with `--no-access-log` so the
-server does not log client addresses either.
+server does not log client addresses either. In the deployment Nginx templates access
+logging is off, but the Nginx error log is kept and may record client metadata (IP
+address, request line, host) when an error occurs; see [deploy/README.md](deploy/README.md).
 
 ## Detection CLI and tests
 

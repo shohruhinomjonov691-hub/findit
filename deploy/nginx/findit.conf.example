@@ -13,6 +13,10 @@ server {
     listen [::]:80;
     server_name findit.example.com;
 
+    # Same logging as the HTTPS block: no access log; error log kept for diagnostics.
+    access_log off;
+    error_log  /var/log/nginx/findit.error.log warn;
+
     location ^~ /.well-known/acme-challenge/ {
         root /var/www/findit-acme;
         default_type "text/plain";
@@ -31,8 +35,10 @@ server {
     ssl_certificate     /etc/letsencrypt/live/findit.example.com/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/findit.example.com/privkey.pem;
 
-    # No access log: it would store client IP addresses, and FindIt promises not to log
-    # client data. Request bodies (images) are never logged either way.
+    # Access logging is off (it would record client IP, request line and host for every
+    # request). The error log is kept for diagnostics; when an error occurs Nginx may write
+    # client metadata such as IP address, request line and host there. Nginx is not
+    # configured to log request bodies.
     access_log off;
     error_log  /var/log/nginx/findit.error.log warn;
 

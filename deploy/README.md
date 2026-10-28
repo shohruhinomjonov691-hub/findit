@@ -13,7 +13,7 @@ file, one snippet and one certificate; it does not change other sites or their c
 | Compose project / container | `findit` / `findit` | other projects on the server |
 | Host port (loopback only) | `127.0.0.1:18780` (`FINDIT_PORT`) | check with `ss -ltnp` |
 | Nginx | `conf.d/findit.conf`, `snippets/findit-proxy.conf` | existing site files |
-| ACME webroot / logs | `/var/www/findit-acme`, `/var/log/nginx/findit.error.log` | other sites’ |
+| ACME webroot / logs | `/var/www/findit-acme`; error log `/var/log/nginx/findit.error.log` (no access log) | other sites’ |
 | Weights (outside the repo) | `/opt/findit-model/yolov8s.pt`, mounted read-only | — |
 
 Limits in `compose.yaml`: `mem_limit 1536m`, `cpus 2`, `pids_limit 256`, read-only root
@@ -88,8 +88,11 @@ If no other site listens on IPv6 port 443, remove `listen [::]:443 ssl;` (as was
 Food Lens). `deploy/nginx/check-config.sh` runs `nginx -t` against both files locally with
 Docker and a throwaway certificate.
 
-The site has `access_log off` so client IP addresses are not stored; the proxy does not
-buffer bodies to disk.
+Logging: every server block (HTTP, HTTPS and the bootstrap file) has `access_log off`, so
+Nginx does not record each request. The error log (`/var/log/nginx/findit.error.log`,
+level `warn`) is kept for diagnostics; when an error occurs Nginx may write client
+metadata such as the IP address, request line and host there. Nginx is not configured to
+log request bodies, and the proxy does not buffer request or response bodies to disk.
 
 ## 4. Smoke and rollback
 

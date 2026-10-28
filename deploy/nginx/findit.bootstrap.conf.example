@@ -6,6 +6,11 @@ server {
     listen [::]:80;
     server_name findit.example.com;
 
+    # Same logging as the final site: no access log; error log kept for diagnostics
+    # (it may record client IP, request line and host when an error occurs).
+    access_log off;
+    error_log  /var/log/nginx/findit.error.log warn;
+
     location ^~ /.well-known/acme-challenge/ {
         root /var/www/findit-acme;
         default_type "text/plain";
