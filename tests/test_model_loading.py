@@ -17,6 +17,7 @@ from findit.detector import Detector
 
 class StubYOLO:
     calls: list = []
+    names = {0: "person"}
 
     def __init__(self, path):
         StubYOLO.calls.append((path, os.environ.get("YOLO_OFFLINE")))

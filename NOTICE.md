@@ -30,6 +30,10 @@ for FindIt would not remove those obligations, so the project uses AGPL-3.0:
 | psutil | 7.2.2 | BSD-3-Clause | RSS measurement |
 | requests | 2.34.2 | Apache-2.0 | test-set download script |
 | certifi | 2026.10.23 | MPL-2.0 | CA bundle for the download script |
+| fastapi | 0.162.0 | MIT | web API |
+| starlette | 1.10.0 | BSD-3-Clause | ASGI toolkit under FastAPI |
+| uvicorn | 0.54.0 | BSD-3-Clause | ASGI server |
+| pydantic / pydantic-core | 2.14.1 / 2.50.1 | MIT | used by FastAPI |
 
 Full pinned list: [requirements.lock.txt](requirements.lock.txt). Model weights and
 dependencies are not redistributed in this repository.

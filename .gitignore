@@ -21,3 +21,6 @@ runs/
 weights/
 
 .DS_Store
+
+# Local tool config
+.claude/

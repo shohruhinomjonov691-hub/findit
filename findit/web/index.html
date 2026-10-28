@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FindIt</title>
+  <meta name="description" content="Find, filter and highlight everyday objects in a photo with a pretrained YOLOv8s detector.">
+  <link rel="stylesheet" href="/static/app.css">
+  <script src="/static/i18n.js" defer></script>
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-name">FindIt</div>
+      <div class="brand-tag" data-i18n="tagline">Find. Filter. Focus.</div>
+    </div>
+    <nav class="nav" aria-label="Main">
+      <button class="nav-item" data-view="finder"><span class="nav-num">01</span><span data-i18n="nav.finder">Finder</span></button>
+      <button class="nav-item" data-view="inspect"><span class="nav-num">02</span><span data-i18n="nav.inspect">Inspect &amp; Export</span></button>
+      <button class="nav-item" data-view="how"><span class="nav-num">03</span><span data-i18n="nav.how">How it works</span></button>
+      <button class="nav-item" data-view="model"><span class="nav-num">04</span><span data-i18n="nav.model">Model details</span></button>
+      <div class="nav-sep" role="presentation"></div>
+      <button class="nav-item" data-view="objects"><span class="nav-icon" aria-hidden="true">◎</span><span data-i18n="nav.objects">Supported objects</span></button>
+      <button class="nav-item" data-view="source"><span class="nav-icon" aria-hidden="true">⟨⟩</span><span data-i18n="nav.source">Source</span></button>
+    </nav>
+    <div class="lang" role="group" aria-label="Language">
+      <button class="lang-btn" data-lang="en">EN</button>
+      <span aria-hidden="true">|</span>
+      <button class="lang-btn" data-lang="ko">한국어</button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="toolbar" id="toolbar">
+      <button class="btn btn-primary" id="uploadBtn"><span aria-hidden="true">⇪</span> <span data-i18n="upload">Upload image</span></button>
+      <input type="file" id="fileInput" accept="image/jpeg,image/png,image/webp" hidden>
+      <button class="btn" id="cameraBtn"><span aria-hidden="true">◉</span> <span data-i18n="capture">Capture frame</span></button>
+      <div class="search">
+        <label for="search" class="sr-only" data-i18n="search.label">Search objects</label>
+        <span class="search-icon" aria-hidden="true">⌕</span>
+        <input id="search" type="search" autocomplete="off" spellcheck="false" data-i18n-placeholder="search.placeholder" placeholder="Search objects, e.g. phone">
+        <button class="search-clear" id="searchClear" hidden data-i18n-aria="search.clear" aria-label="Clear search">×</button>
+      </div>
+      <div class="chips" role="group" data-i18n-aria="filter.group" aria-label="Category">
+        <button class="chip" data-cat="all" data-i18n="cat.all">All</button>
+        <button class="chip" data-cat="electronics" data-i18n="cat.electronics">Electronics</button>
+        <button class="chip" data-cat="kitchen" data-i18n="cat.kitchen">Kitchen</button>
+        <button class="chip" data-cat="everyday" data-i18n="cat.everyday">Everyday</button>
+      </div>
+      <label class="sort">
+        <span data-i18n="sort.label">Sort by</span>
+        <select id="sort">
+          <option value="score" data-i18n="sort.score">Score</option>
+          <option value="name" data-i18n="sort.name">Name</option>
+          <option value="area" data-i18n="sort.area">Box area</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="banner" id="banner" role="alert" hidden>
+      <span id="bannerText"></span>
+      <button class="banner-close" id="bannerClose" data-i18n-aria="close" aria-label="Close">×</button>
+    </div>
+
+    <section class="workspace" id="workspace">
+      <div class="stage" id="stage">
+        <div class="stage-empty" id="stageEmpty">
+          <div class="empty-mark" aria-hidden="true">⌕</div>
+          <h1 data-i18n="empty.title">Find objects in a photo</h1>
+          <p data-i18n="empty.body">Upload an image or capture one frame from your camera. The detector marks everyday objects it recognizes.</p>
+          <div class="empty-actions">
+            <button class="btn btn-primary" data-action="upload" data-i18n="upload">Upload image</button>
+            <button class="btn" data-action="camera" data-i18n="capture">Capture frame</button>
+          </div>
+          <p class="hint" id="limitsHint"></p>
+          <p class="hint" data-i18n="empty.drop">You can also drop an image here.</p>
+        </div>
+        <div class="canvas-wrap" id="canvasWrap" hidden>
+          <img id="photo" alt="">
+          <div class="overlay" id="overlay"></div>
+        </div>
+        <div class="stage-loading" id="stageLoading" hidden>
+          <div class="spinner" aria-hidden="true"></div>
+          <span data-i18n="loading">Detecting objects…</span>
+        </div>
+      </div>
+
+      <aside class="panel" id="panelFinder" aria-labelledby="resultsTitle">
+        <div class="panel-head">
+          <h2 id="resultsTitle" class="panel-title"></h2>
+          <label class="class-filter">
+            <span class="sr-only" data-i18n="filter.class">Class</span>
+            <select id="classFilter"></select>
+          </label>
+        </div>
+        <p class="timing" id="timing"></p>
+        <div class="results" id="results" role="list"></div>
+        <p class="notfound" id="notFound" hidden></p>
+
+        <div class="selected" id="selectedCard" hidden>
+          <h3 class="panel-sub" data-i18n="selected.title">Selected object</h3>
+          <div class="selected-body">
+            <canvas class="crop" id="cropCanvas" width="160" height="160" aria-hidden="true"></canvas>
+            <div class="selected-info">
+              <div class="selected-name" id="selName"></div>
+              <div class="selected-loc" id="selLoc"></div>
+              <div class="grid3" id="grid3" aria-hidden="true"></div>
+              <div class="selected-score" id="selScore"></div>
+              <button class="btn btn-small" id="speakBtn"><span aria-hidden="true">🔊</span> <span data-i18n="speak">Speak location</span></button>
+            </div>
+          </div>
+        </div>
+
+        <div class="controls" id="controlsFinder"></div>
+      </aside>
+
+      <aside class="panel" id="panelInspect" hidden aria-labelledby="inspectTitle">
+        <h2 class="panel-title" id="inspectTitle" data-i18n="inspect.title">Inspect &amp; Export</h2>
+        <div class="inspect-selected" id="inspectSelected"></div>
+        <div class="field">
+          <div class="field-label" data-i18n="inspect.coords">Coordinates (x1, y1, x2, y2)</div>
+          <div class="field-row">
+            <output class="mono" id="coordOut">—</output>
+            <button class="btn btn-small" id="copyCoords" data-i18n="copy">Copy</button>
+          </div>
+        </div>
+        <div class="field">
+          <div class="field-row">
+            <div class="field-label" data-i18n="inspect.json">Detection JSON</div>
+            <div class="btn-row">
+              <button class="btn btn-small" id="copyJson" data-i18n="copyJson">Copy JSON</button>
+              <button class="btn btn-small" id="downloadJson" data-i18n="downloadJson">Download JSON</button>
+            </div>
+          </div>
+          <pre class="json" id="jsonView" tabindex="0"></pre>
+        </div>
+        <button class="btn btn-wide" id="downloadImage"><span aria-hidden="true">⤓</span> <span data-i18n="downloadImage">Download annotated image</span></button>
+        <p class="hint" data-i18n="inspect.note">Boxes use pixel coordinates of the upright (EXIF-corrected) original image. The annotated image is drawn on the preview size.</p>
+        <div class="controls" id="controlsInspect"></div>
+      </aside>
+    </section>
+
+    <section class="page" id="page-how" hidden>
+      <h1 data-i18n="how.title">How it works</h1>
+      <ol class="steps">
+        <li><strong data-i18n="how.s1">1. Capture</strong><span data-i18n="how.s1b">Upload an image or take one frame from your camera. Nothing runs continuously.</span></li>
+        <li><strong data-i18n="how.s2">2. Detect</strong><span data-i18n="how.s2b">The server runs a pretrained YOLOv8s model once on the image and returns boxes, class names and scores.</span></li>
+        <li><strong data-i18n="how.s3">3. Filter</strong><span data-i18n="how.s3b">Search by name, pick a category or class, and sort by score, name or box area.</span></li>
+        <li><strong data-i18n="how.s4">4. Focus</strong><span data-i18n="how.s4b">Select an object to highlight it, see a close-up, its 3×3 position and coordinates, or hear its location.</span></li>
+      </ol>
+      <h2 data-i18n="limits.title">Limitations</h2>
+      <ul class="bullets">
+        <li data-i18n="limits.1">Small, hidden, unusual or dim objects may be missed or mislabelled.</li>
+        <li data-i18n="limits.2">Not detected does not mean absent.</li>
+        <li data-i18n="limits.3">The score is the model's confidence, not a guarantee that the label is correct.</li>
+        <li data-i18n="limits.4">Only the 80 COCO object classes can be found. No custom training was done.</li>
+        <li data-i18n="limits.5">FindIt has no accuracy benchmark (no mAP measured). A 20-image feasibility check is in the repository docs.</li>
+        <li data-i18n="limits.6">Images are processed in memory and not stored.</li>
+      </ul>
+    </section>
+
+    <section class="page" id="page-model" hidden>
+      <h1 data-i18n="model.title">Model details</h1>
+      <dl class="facts" id="modelFacts"></dl>
+      <h2 data-i18n="model.stack">Stack</h2>
+      <ul class="bullets">
+        <li data-i18n="model.stack1">Detection: Ultralytics YOLOv8s, pretrained on COCO (80 classes), PyTorch on CPU.</li>
+        <li data-i18n="model.stack2">Backend: FastAPI (Python).</li>
+        <li data-i18n="model.stack3">Frontend: plain HTML, CSS and JavaScript.</li>
+      </ul>
+    </section>
+
+    <section class="page" id="page-objects" hidden>
+      <h1 data-i18n="objects.title">Supported objects</h1>
+      <p data-i18n="objects.body">The model can only label these 80 COCO classes. Being on this list does not mean an object will always be found.</p>
+      <ul class="class-grid" id="classGrid"></ul>
+    </section>
+
+    <section class="page" id="page-source" hidden>
+      <h1 data-i18n="source.title">Source</h1>
+      <p data-i18n="source.license">FindIt is free software under the GNU Affero General Public License v3.0 (AGPL-3.0), because it uses Ultralytics YOLOv8 (AGPL-3.0). If you use FindIt over a network, you are entitled to its complete source code.</p>
+      <div class="source-box" id="sourceBox"></div>
+      <p class="hint" data-i18n="source.files">License texts and third-party notices: LICENSE and NOTICE.md in the repository.</p>
+    </section>
+
+    <div class="sr-only" aria-live="polite" id="live"></div>
+  </main>
+</div>
+
+<dialog class="camera" id="cameraDialog" aria-labelledby="cameraTitle">
+  <h2 id="cameraTitle" data-i18n="camera.title">Capture one frame</h2>
+  <video id="cameraVideo" playsinline muted autoplay></video>
+  <p class="hint" id="cameraHint" data-i18n="camera.hint">Only the frame you capture is sent for detection.</p>
+  <div class="btn-row">
+    <button class="btn" id="cameraCancel" data-i18n="cancel">Cancel</button>
+    <button class="btn btn-primary" id="cameraShoot" data-i18n="camera.shoot">Capture</button>
+  </div>
+</dialog>
+</body>
+</html>

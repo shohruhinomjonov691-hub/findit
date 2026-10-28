@@ -11,6 +11,13 @@ from PIL import Image, ImageDraw, ImageFont, ImageOps
 
 EXIF_ORIENTATION_TAG = 0x0112
 
+# Pillow's own opener. Importing Ultralytics replaces PIL.Image.open with a wrapper
+# that, for an unidentified file, calls check_requirements("pi-heif") (a pip
+# auto-install attempt). Untrusted uploads must never reach that wrapper.
+pil_open = Image.open
+if not pil_open.__module__.startswith("PIL"):
+    from ultralytics.utils.patches import _image_open as pil_open
+
 
 @dataclass
 class Detection:
@@ -23,7 +30,7 @@ class Detection:
 
 def load_oriented(path: Path) -> tuple[Image.Image, dict]:
     """Open an image, apply EXIF orientation and return it as RGB plus size metadata."""
-    with Image.open(path) as raw:
+    with pil_open(path) as raw:
         raw_size = raw.size
         orientation = raw.getexif().get(EXIF_ORIENTATION_TAG, 1)
         img = ImageOps.exif_transpose(raw).convert("RGB")
@@ -53,13 +60,22 @@ def resolve_local_weights(model_path: str | Path) -> Path:
 class Detector:
     """Loads the model once; call detect() for every image."""
 
-    def __init__(self, model_path: Path, imgsz: int = 640, conf: float = 0.25, device: str = "cpu"):
+    def __init__(
+        self,
+        model_path: Path,
+        imgsz: int = 640,
+        conf: float = 0.25,
+        device: str = "cpu",
+        agnostic_nms: bool = False,
+    ):
         # Checked before importing Ultralytics: given a URL or a missing file it would
         # download weights itself, and that path ignores YOLO_OFFLINE.
         model_path = resolve_local_weights(model_path)
-        # Turns off Ultralytics' own online checks and usage analytics (settings "sync").
+        # Turns off Ultralytics' own online checks, usage analytics (settings "sync")
+        # and its pip auto-install of missing packages.
         # This is not network isolation of the process.
         os.environ["YOLO_OFFLINE"] = "1"
+        os.environ["YOLO_AUTOINSTALL"] = "False"
         t0 = time.perf_counter()
         from ultralytics import YOLO
 
@@ -71,11 +87,22 @@ class Detector:
         self.imgsz = imgsz
         self.conf = conf
         self.device = device
+        # Class-agnostic NMS keeps one label per object (the feasibility run saw
+        # the same box labelled both "book" and "cell phone").
+        self.agnostic_nms = agnostic_nms
+        self.class_names = dict(self.model.names)
 
     def detect(self, img: Image.Image) -> tuple[list[Detection], dict]:
         t0 = time.perf_counter()
         # A PIL image is passed so Ultralytics handles the RGB->BGR conversion itself.
-        result = self.model.predict(img, imgsz=self.imgsz, conf=self.conf, device=self.device, verbose=False)[0]
+        result = self.model.predict(
+            img,
+            imgsz=self.imgsz,
+            conf=self.conf,
+            device=self.device,
+            agnostic_nms=self.agnostic_nms,
+            verbose=False,
+        )[0]
         wall_ms = (time.perf_counter() - t0) * 1000
         assert tuple(result.orig_shape) == (img.height, img.width)
 
