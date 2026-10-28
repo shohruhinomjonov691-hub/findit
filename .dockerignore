@@ -1,0 +1,13 @@
+# Build context is the repository root. Allowlist: everything is excluded except what the
+# image copies, so weights, test images, local browser samples, results and .env never enter it.
+*
+!deploy/requirements-server.txt
+!findit/
+!LICENSE
+!NOTICE.md
+!README.md
+findit/web/_samples
+findit/web/_samples/**
+**/__pycache__
+**/*.pyc
+**/.DS_Store

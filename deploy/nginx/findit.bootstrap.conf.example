@@ -1,0 +1,17 @@
+# Step 1 of 2 — HTTP only, to obtain the certificate (see deploy/README.md).
+# Replace findit.example.com with the real domain before installing.
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name findit.example.com;
+
+    location ^~ /.well-known/acme-challenge/ {
+        root /var/www/findit-acme;
+        default_type "text/plain";
+    }
+
+    location / {
+        return 404;
+    }
+}

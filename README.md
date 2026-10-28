@@ -36,6 +36,11 @@ Environment variables:
 | `FINDIT_SOURCE_URL` | unset | public source link shown on the Source page (AGPL §13); unset shows "not published" |
 | `FINDIT_COMMIT` | `git describe` of the checkout | commit shown on the Source page; set by the Docker build, where there is no `.git` |
 
+## Deployment
+
+Not deployed. Docker/Compose/Nginx files and a runbook are in [deploy/](deploy/README.md);
+the YOLOv8s weights are mounted read-only from the host and never enter the image or git.
+
 ## API
 
 | Route | Description |

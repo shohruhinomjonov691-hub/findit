@@ -1,0 +1,46 @@
+# FindIt — its own Compose project, separate from the other apps on the server.
+# The service listens only on the host's loopback; the existing Nginx terminates HTTPS and
+# proxies the whole site to it (deploy/nginx/). The browser uses relative URLs only.
+#
+# Required in .env (git-ignored) next to this file:
+#   FINDIT_MODEL_DIR_HOST  absolute host path of a folder with yolov8s.pt (SHA-256 in
+#                          models/MODELS.md), outside the repository; mounted read-only
+#   FINDIT_SOURCE_URL      public URL of this repository (AGPL §13 "Source" link)
+#   FINDIT_COMMIT          commit being deployed, e.g. $(git rev-parse --short HEAD)
+name: findit
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        FINDIT_COMMIT: ${FINDIT_COMMIT:?set FINDIT_COMMIT to the deployed commit (git rev-parse --short HEAD)}
+    image: findit:${FINDIT_COMMIT:?set FINDIT_COMMIT}
+    container_name: findit
+    restart: unless-stopped
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 256
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    ports:
+      - "127.0.0.1:${FINDIT_PORT:-18780}:8000"
+    environment:
+      FINDIT_SOURCE_URL: ${FINDIT_SOURCE_URL:?set FINDIT_SOURCE_URL to the public repository URL}
+    volumes:
+      - type: bind
+        source: ${FINDIT_MODEL_DIR_HOST:?set FINDIT_MODEL_DIR_HOST to the folder holding yolov8s.pt (outside the repo)}
+        target: /run/findit-model
+        read_only: true
+    # In-memory /tmp for Ultralytics/Matplotlib config; uploads are processed in memory only.
+    tmpfs:
+      - /tmp:size=32m,mode=1777,noexec,nosuid,nodev
+    mem_limit: 1536m
+    cpus: 2

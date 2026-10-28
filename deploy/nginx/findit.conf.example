@@ -1,0 +1,40 @@
+# Step 2 of 2 — final site, after the certificate was issued (see deploy/README.md).
+# Replace findit.example.com with the real domain. Written for Nginx 1.24 like the other
+# sites on the server: no "http2" on the 443 listen lines.
+# The container runs from compose.yaml on 127.0.0.1:18780 (FINDIT_PORT).
+
+upstream findit_app {
+    server 127.0.0.1:18780;   # keep in sync with FINDIT_PORT in .env / compose.yaml
+    keepalive 8;
+}
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name findit.example.com;
+
+    location ^~ /.well-known/acme-challenge/ {
+        root /var/www/findit-acme;
+        default_type "text/plain";
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    server_name findit.example.com;
+
+    ssl_certificate     /etc/letsencrypt/live/findit.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/findit.example.com/privkey.pem;
+
+    # No access log: it would store client IP addresses, and FindIt promises not to log
+    # client data. Request bodies (images) are never logged either way.
+    access_log off;
+    error_log  /var/log/nginx/findit.error.log warn;
+
+    include /etc/nginx/snippets/findit-proxy.conf;
+}
