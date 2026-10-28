@@ -43,12 +43,20 @@ Environment variables:
 | `GET /api/info` | model file, SHA-256, classes, threshold, limits, source link and local commit |
 | `GET /api/health` | liveness and whether the model is loaded |
 
-Limits: JPEG/PNG/WebP only (checked by decoding, not by extension), ≤ 10 MiB,
+Limits: JPEG and PNG only, recognized from the file's leading bytes before any
+decoder runs (not from the extension or `Content-Type`); WebP is refused because its
+decoder allocates the full canvas before size limits can be checked. Animated PNGs
+are accepted and only the first frame is analysed. ≤ 10 MiB,
 16–12000 px per side, ≤ 40 MP. One inference runs at a time; at most 4 requests
 wait, later ones get `503 busy`.
 
+Search matches only a full class name (English or Korean) or a listed synonym, so an
+unsupported object such as "tablet" is reported as not supported instead of being
+mapped to a similar class.
+
 Privacy: images are processed in memory and never written to disk. The app logs no
-image data, file names or client data; start uvicorn with `--no-access-log` so the
+image data, file names, client data or exception messages (unexpected request errors are
+logged only as `server_error`); start uvicorn with `--no-access-log` so the
 server does not log client addresses either.
 
 ## Detection CLI and tests
@@ -56,10 +64,18 @@ server does not log client addresses either.
 ```bash
 .venv/bin/python -m findit.detect path/to/photo.jpg --model models/yolov8s.pt --out results/demo
 .venv/bin/python -m unittest discover -s tests
+node --test tests/js/*.test.mjs
 ```
 
-`tests/test_integration.py` runs the real model and is skipped unless the weights
-and the git-ignored test images (`python scripts/fetch_testset.py`) exist.
+- `tests/test_app.py`: API with a stub detector (limits, formats, EXIF frame, busy,
+  errors, no disk spooling of the current endpoint).
+- `tests/test_uvicorn_errors.py`: starts a real Uvicorn server and checks that a 500
+  keeps the security headers and that the exception text never reaches the log.
+- `tests/test_integration.py`: real YOLOv8s on a test image; skipped unless the
+  weights and the git-ignored test images (`python scripts/fetch_testset.py`) exist.
+- `tests/js/`: Node unit tests (no dependencies) for the camera request guard and the
+  exact-match search in `findit/web/camera.js` and `search.js`. They use fake streams,
+  not a browser.
 
 ## License
 

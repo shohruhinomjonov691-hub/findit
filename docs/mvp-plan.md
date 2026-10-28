@@ -27,7 +27,8 @@ coordinates with area, center and 3×3 cell, and server-measured inference time.
 ## Safety limits
 
 - Upload ≤ 10 MiB as raw body (streamed, stops at limit; no multipart spooling to disk), ≤ 40 MP, sides 16–12000 px,
-  JPEG/PNG/WebP only, decoded with Pillow (content decides, not the extension).
+  JPEG/PNG only, recognized from leading bytes before decoding (WebP refused: its
+  decoder allocates the canvas before limits can be checked); animated PNG → first frame.
 - One inference at a time (asyncio lock); at most 4 requests waiting, then `503 busy`.
 - No image is written to disk; no file names, image data or client data in logs;
   run uvicorn with `--no-access-log`.

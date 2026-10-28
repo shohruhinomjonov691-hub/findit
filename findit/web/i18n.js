@@ -14,7 +14,7 @@ window.FINDIT_I18N = {
     "empty.title": "Find objects in a photo",
     "empty.body": "Upload an image or capture one frame from your camera. The detector marks everyday objects it recognizes.",
     "empty.drop": "You can also drop an image here.",
-    "empty.limits": "JPEG, PNG or WebP · up to {mib} MiB · up to {mp} MP",
+    "empty.limits": "JPEG or PNG · up to {mib} MiB · up to {mp} MP",
     loading: "Detecting objects…",
     "results.none": "No image yet",
     "results.count": "{n} objects found", "results.one": "1 object found", "results.zero": "No objects found",
@@ -40,7 +40,7 @@ window.FINDIT_I18N = {
     "err.file_too_large": "The image is too large (max {mib} MiB).",
     "err.empty_file": "The file is empty.",
     "err.invalid_image": "This file is not a readable image.",
-    "err.unsupported_format": "Only JPEG, PNG and WebP images are supported.",
+    "err.unsupported_format": "Only JPEG and PNG images are supported.",
     "err.image_dimensions": "The image size is outside the limits ({min}–{max} px per side, up to {mp} MP).",
     "err.busy": "The detector is busy. Please try again in a moment.",
     "err.model_unavailable": "The detection model is not loaded on the server.",
@@ -51,6 +51,7 @@ window.FINDIT_I18N = {
     "err.camera_insecure": "The camera needs a secure (HTTPS or localhost) page.",
     "err.camera_other": "The camera could not be started.",
     "camera.title": "Capture one frame", "camera.hint": "Only the frame you capture is sent for detection.", "camera.shoot": "Capture",
+    "camera.waiting": "Waiting for camera access…",
     "how.title": "How it works",
     "how.s1": "1. Capture", "how.s1b": "Upload an image or take one frame from your camera. Nothing runs continuously.",
     "how.s2": "2. Detect", "how.s2b": "The server runs a pretrained YOLOv8s model once on the image and returns boxes, class names and scores.",
@@ -93,7 +94,7 @@ window.FINDIT_I18N = {
     "empty.title": "사진 속 객체 찾기",
     "empty.body": "이미지를 업로드하거나 카메라로 한 프레임을 촬영하세요. 검출기가 인식한 일상 객체를 표시합니다.",
     "empty.drop": "이미지를 여기에 끌어다 놓을 수도 있습니다.",
-    "empty.limits": "JPEG, PNG, WebP · 최대 {mib} MiB · 최대 {mp} MP",
+    "empty.limits": "JPEG, PNG · 최대 {mib} MiB · 최대 {mp} MP",
     loading: "객체를 검출하는 중…",
     "results.none": "아직 이미지가 없습니다",
     "results.count": "객체 {n}개 발견", "results.one": "객체 1개 발견", "results.zero": "발견된 객체 없음",
@@ -119,7 +120,7 @@ window.FINDIT_I18N = {
     "err.file_too_large": "이미지가 너무 큽니다 (최대 {mib} MiB).",
     "err.empty_file": "파일이 비어 있습니다.",
     "err.invalid_image": "읽을 수 있는 이미지 파일이 아닙니다.",
-    "err.unsupported_format": "JPEG, PNG, WebP 이미지만 지원합니다.",
+    "err.unsupported_format": "JPEG, PNG 이미지만 지원합니다.",
     "err.image_dimensions": "이미지 크기가 제한을 벗어났습니다 (한 변 {min}–{max} px, 최대 {mp} MP).",
     "err.busy": "검출기가 사용 중입니다. 잠시 후 다시 시도하세요.",
     "err.model_unavailable": "서버에 검출 모델이 로드되지 않았습니다.",
@@ -130,6 +131,7 @@ window.FINDIT_I18N = {
     "err.camera_insecure": "카메라는 보안(HTTPS 또는 localhost) 페이지에서만 사용할 수 있습니다.",
     "err.camera_other": "카메라를 시작할 수 없습니다.",
     "camera.title": "한 프레임 촬영", "camera.hint": "촬영한 프레임만 검출을 위해 전송됩니다.", "camera.shoot": "촬영",
+    "camera.waiting": "카메라 접근을 기다리는 중…",
     "how.title": "작동 방식",
     "how.s1": "1. 촬영", "how.s1b": "이미지를 업로드하거나 카메라로 한 프레임을 촬영합니다. 연속 실행은 없습니다.",
     "how.s2": "2. 검출", "how.s2b": "서버가 사전 학습된 YOLOv8s 모델을 이미지에 한 번 실행하여 박스, 클래스 이름, 점수를 반환합니다.",
@@ -181,13 +183,16 @@ window.FINDIT_CLASS_KO = {
   "hair drier": "헤어드라이어", "toothbrush": "칫솔"
 };
 
-// Extra search words that point to a COCO class.
+// Extra search words that name a COCO class. Matched only as the whole query
+// (see search.js); add a word only when it clearly means that class.
 window.FINDIT_SYNONYMS = {
-  "phone": "cell phone", "smartphone": "cell phone", "mobile": "cell phone", "iphone": "cell phone",
-  "핸드폰": "cell phone", "폰": "cell phone", "스마트폰": "cell phone",
-  "mug": "cup", "머그": "cup", "monitor": "tv", "screen": "tv", "television": "tv", "모니터": "tv",
-  "sofa": "couch", "bike": "bicycle", "motorbike": "motorcycle", "plant": "potted plant",
-  "table": "dining table", "fridge": "refrigerator", "ball": "sports ball", "물병": "bottle"
+  "phone": "cell phone", "cellphone": "cell phone", "mobile phone": "cell phone", "smartphone": "cell phone",
+  "iphone": "cell phone", "핸드폰": "cell phone", "폰": "cell phone", "스마트폰": "cell phone", "휴대전화": "cell phone",
+  "mug": "cup", "머그": "cup", "머그컵": "cup",
+  "television": "tv", "tv set": "tv", "monitor": "tv", "텔레비전": "tv", "모니터": "tv",
+  "laptop computer": "laptop", "computer mouse": "mouse",
+  "sofa": "couch", "bike": "bicycle", "motorbike": "motorcycle", "fridge": "refrigerator",
+  "table": "dining table", "테이블": "dining table", "물병": "bottle", "ball": "sports ball"
 };
 
 window.FINDIT_CATEGORIES = {

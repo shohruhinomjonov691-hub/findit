@@ -7,6 +7,8 @@
   <meta name="description" content="Find, filter and highlight everyday objects in a photo with a pretrained YOLOv8s detector.">
   <link rel="stylesheet" href="/static/app.css">
   <script src="/static/i18n.js" defer></script>
+  <script src="/static/search.js" defer></script>
+  <script src="/static/camera.js" defer></script>
   <script src="/static/app.js" defer></script>
 </head>
 <body>
@@ -35,7 +37,7 @@
   <main class="main">
     <div class="toolbar" id="toolbar">
       <button class="btn btn-primary" id="uploadBtn"><span aria-hidden="true">⇪</span> <span data-i18n="upload">Upload image</span></button>
-      <input type="file" id="fileInput" accept="image/jpeg,image/png,image/webp" hidden>
+      <input type="file" id="fileInput" accept="image/jpeg,image/png" hidden>
       <button class="btn" id="cameraBtn"><span aria-hidden="true">◉</span> <span data-i18n="capture">Capture frame</span></button>
       <div class="search">
         <label for="search" class="sr-only" data-i18n="search.label">Search objects</label>

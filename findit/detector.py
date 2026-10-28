@@ -28,9 +28,12 @@ class Detection:
     bbox_xyxy: list[float]
 
 
-def load_oriented(path: Path) -> tuple[Image.Image, dict]:
-    """Open an image, apply EXIF orientation and return it as RGB plus size metadata."""
-    with pil_open(path) as raw:
+def load_oriented(path: Path, formats: tuple[str, ...] | None = None) -> tuple[Image.Image, dict]:
+    """Open an image, apply EXIF orientation and return it as RGB plus size metadata.
+
+    For a multi-frame file (animated PNG) only the first frame is used.
+    """
+    with pil_open(path, formats=formats) as raw:
         raw_size = raw.size
         orientation = raw.getexif().get(EXIF_ORIENTATION_TAG, 1)
         img = ImageOps.exif_transpose(raw).convert("RGB")

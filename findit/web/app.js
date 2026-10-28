@@ -64,19 +64,8 @@
     return S.info && S.info.model.classes.length ? S.info.model.classes : Object.keys(CLASS_KO);
   }
 
-  // Returns null for an empty query, otherwise the set of COCO classes the query can mean (may be empty).
-  function queryClasses() {
-    const q = S.query.trim().toLowerCase();
-    if (!q) return null;
-    const out = new Set();
-    for (const name of allClasses()) {
-      if (name.includes(q) || (CLASS_KO[name] || "").includes(q)) out.add(name);
-    }
-    for (const [word, name] of Object.entries(SYNONYMS)) {
-      if (word.startsWith(q) || q.startsWith(word)) out.add(name);
-    }
-    return out;
-  }
+  // Returns null for an empty query, otherwise the set of COCO classes it names exactly (may be empty).
+  const queryClasses = () => window.FindItSearch.queryClasses(S.query, allClasses(), CLASS_KO, SYNONYMS);
 
   function visibleDetections() {
     if (!S.result) return [];
@@ -490,34 +479,35 @@
     }
   }
 
-  // Camera: one frame on request, stream stopped right after.
-  let stream = null;
-  function stopCamera() {
-    if (stream) stream.getTracks().forEach((tr) => tr.stop());
-    stream = null;
-    $("cameraVideo").srcObject = null;
-  }
-  // Stops the stream directly; the dialog "close" event is only a fallback (Escape key).
+  // Camera: one frame on request, stream stopped right after. camera.js allows one
+  // request at a time and stops a stream that arrives after the dialog was closed.
+  const camera = window.FindItCamera.createCamera((c) => navigator.mediaDevices.getUserMedia(c));
   function closeCamera() {
-    stopCamera();
+    camera.close();
+    $("cameraVideo").srcObject = null;
     if ($("cameraDialog").open) $("cameraDialog").close();
   }
   async function openCamera() {
-    if (S.busy) return;
+    if (S.busy || camera.pending || camera.stream) return;
     if (!window.isSecureContext) { showError("err.camera_insecure"); return; }
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { showError("err.camera_missing"); return; }
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
-    } catch (err) {
-      const name = err && err.name;
-      showError(name === "NotAllowedError" || name === "SecurityError" ? "err.camera_denied"
-        : name === "NotFoundError" || name === "OverconstrainedError" ? "err.camera_missing" : "err.camera_other");
-      return;
-    }
     S.error = null;
     renderBanner();
-    $("cameraVideo").srcObject = stream;
+    // The dialog opens before permission is granted so the request can be cancelled.
+    $("cameraShoot").disabled = true;
+    $("cameraHint").textContent = t("camera.waiting");
     $("cameraDialog").showModal();
+    const res = await camera.open({ video: { facingMode: "environment" }, audio: false });
+    if (res.status === "open") {
+      $("cameraVideo").srcObject = res.stream;
+      $("cameraShoot").disabled = false;
+      $("cameraHint").textContent = t("camera.hint");
+    } else if (res.status === "error") {
+      closeCamera();
+      const name = res.error && res.error.name;
+      showError(name === "NotAllowedError" || name === "SecurityError" ? "err.camera_denied"
+        : name === "NotFoundError" || name === "OverconstrainedError" ? "err.camera_missing" : "err.camera_other");
+    }
   }
   function shootCamera() {
     const v = $("cameraVideo");
@@ -695,7 +685,7 @@
 
     $("cameraShoot").addEventListener("click", shootCamera);
     $("cameraCancel").addEventListener("click", closeCamera);
-    $("cameraDialog").addEventListener("close", stopCamera);
+    $("cameraDialog").addEventListener("close", closeCamera);
   }
 
   async function loadInfo() {

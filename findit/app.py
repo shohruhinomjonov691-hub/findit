@@ -44,7 +44,9 @@ class Settings:
     max_pixels: int = 40_000_000
     min_side: int = 16
     max_side: int = 12_000
-    allowed_formats: tuple[str, ...] = ("JPEG", "PNG", "WEBP")
+    # WebP is not accepted: its decoder allocates the full canvas while the file is
+    # being opened, before the limits below can be checked.
+    allowed_formats: tuple[str, ...] = ("JPEG", "PNG")
     preview_max_side: int = 2048
     max_waiting: int = 4
     source_url: str | None = field(default_factory=lambda: os.environ.get("FINDIT_SOURCE_URL") or None)
@@ -96,22 +98,44 @@ async def read_limited(request: Request, limit: int) -> bytes:
     return b"".join(chunks)
 
 
+# Leading bytes of accepted formats, and of common image formats that are refused.
+SIGNATURES = {"JPEG": (b"\xff\xd8\xff",), "PNG": (b"\x89PNG\r\n\x1a\n",)}
+REFUSED_SIGNATURES = (b"RIFF", b"GIF87a", b"GIF89a", b"BM", b"II*\x00", b"MM\x00*", b"\x00\x00\x00\x0cjP")
+
+
+def sniff_format(data: bytes) -> str:
+    """Decide the format from the leading bytes, before any Pillow decoder is created."""
+    for fmt, prefixes in SIGNATURES.items():
+        if data.startswith(prefixes):
+            return fmt
+    if data.startswith(REFUSED_SIGNATURES) or data[4:8] == b"ftyp":  # WebP/GIF/BMP/TIFF/JPEG 2000/HEIC/AVIF
+        raise ApiError(415, "unsupported_format", "Only JPEG and PNG images are supported.")
+    raise ApiError(415, "invalid_image", "The file is not a readable image.")
+
+
 def decode_image(data: bytes, s: Settings) -> tuple[Image.Image, dict]:
-    """Validate the bytes as a real image within limits; return the upright RGB image."""
+    """Validate the bytes as a real image within limits; return the upright RGB image.
+
+    Opening a JPEG/PNG only parses headers, so the size limits are checked before
+    pixel data is decoded. Animated PNGs are accepted and only the first frame is used.
+    """
+    fmt = sniff_format(data)
+    if fmt not in s.allowed_formats:
+        raise ApiError(415, "unsupported_format", "Only JPEG and PNG images are supported.")
     try:
-        with pil_open(io.BytesIO(data)) as probe:
+        with pil_open(io.BytesIO(data), formats=[fmt]) as probe:
             fmt, (w, h) = probe.format, probe.size
     except (OSError, SyntaxError, ValueError, Image.DecompressionBombError):
         raise ApiError(415, "invalid_image", "The file is not a readable image.")
     if fmt not in s.allowed_formats:
-        raise ApiError(415, "unsupported_format", "Only JPEG, PNG and WebP images are supported.")
+        raise ApiError(415, "unsupported_format", "Only JPEG and PNG images are supported.")
     if min(w, h) < s.min_side or max(w, h) > s.max_side or w * h > s.max_pixels:
         raise ApiError(
             413, "image_dimensions",
             f"Image must be {s.min_side}–{s.max_side} px per side and at most {s.max_pixels // 1_000_000} MP.",
         )
     try:
-        img, meta = load_oriented(io.BytesIO(data))
+        img, meta = load_oriented(io.BytesIO(data), formats=(fmt,))
     except (OSError, SyntaxError, ValueError, Image.DecompressionBombError):
         raise ApiError(415, "invalid_image", "The image data is damaged or incomplete.")
     meta["format"] = fmt
@@ -206,15 +230,20 @@ def create_app(settings: Settings | None = None, detector_factory: Callable | No
     async def api_error(_: Request, exc: ApiError):
         return JSONResponse({"error": {"code": exc.code, "message": exc.message}}, status_code=exc.status)
 
-    @app.exception_handler(Exception)
-    async def unexpected_error(_: Request, exc: Exception):
-        # Only the exception type is logged: messages can contain paths or request data.
-        log.error("unhandled error: %s", type(exc).__name__)
-        return JSONResponse({"error": {"code": "server_error", "message": "Internal server error."}}, status_code=500)
 
     @app.middleware("http")
     async def security_headers(request: Request, call_next):
-        response = await call_next(request)
+        # Unexpected errors are turned into a response here, inside the app. An
+        # @exception_handler(Exception) would run in Starlette's ServerErrorMiddleware,
+        # which re-raises afterwards: Uvicorn then logs the traceback (exception
+        # message included) and the response skips this middleware's headers.
+        try:
+            response = await call_next(request)
+        except Exception:
+            log.error("request failed: server_error")
+            response = JSONResponse(
+                {"error": {"code": "server_error", "message": "Internal server error."}}, status_code=500
+            )
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; "
             "style-src 'self'; script-src 'self'; connect-src 'self'; "

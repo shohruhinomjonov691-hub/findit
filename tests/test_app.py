@@ -107,10 +107,8 @@ class AppTest(ClientMixin, unittest.TestCase):
         self.assertEqual(body["detections"][1]["bbox_xyxy"], [0.0, 0.0, 50.0, 50.0])
         self.assertEqual([d["id"] for d in body["detections"]], [0, 1])
 
-    def test_png_and_webp_accepted(self):
-        client = self.make_client()
-        for fmt in ("PNG", "WEBP"):
-            self.assertEqual(self.post(client, image_bytes(fmt=fmt)).status_code, 200, fmt)
+    def test_png_accepted(self):
+        self.assertEqual(self.post(self.make_client(), image_bytes(fmt="PNG"), ctype="image/png").status_code, 200)
 
     def test_rejects_non_image_with_image_name(self):
         r = self.post(self.make_client(), b"not an image at all" * 10, name="x.jpg")
@@ -260,8 +258,12 @@ class PatchedOpenerTest(ClientMixin, unittest.TestCase):
 
 
 class NoDiskSpillTest(ClientMixin, unittest.TestCase):
-    """Uploads above Starlette's 1 MiB multipart spool size used to be written to a
-    temporary file. The image must stay in memory for any accepted size."""
+    """The detect endpoint reads the raw body in memory and never runs Starlette's
+    multipart parser, which spools parts above 1 MiB to a temporary file.
+
+    Scope: these tests check the current endpoint only. They do not by themselves
+    prove the earlier multipart endpoint spilled to disk (that was seen once while
+    the helper still posted multipart; the helper now posts a raw body)."""
 
     def test_large_upload_never_rolls_over_to_disk(self):
         import random
@@ -285,3 +287,66 @@ class NoDiskSpillTest(ClientMixin, unittest.TestCase):
             r = self.post(client, data, ctype="image/png")
         self.assertEqual(r.status_code, 200, r.text[:200])
         self.assertEqual(rollovers, [])
+
+
+class FormatPreflightTest(ClientMixin, unittest.TestCase):
+    """WebP's decoder allocates its canvas while opening, before the app's pixel
+    limits can be checked, so only JPEG and PNG are accepted, and the format is
+    decided from the leading bytes before any Pillow decoder is created."""
+
+    def test_webp_is_rejected_before_its_decoder_opens(self):
+        from PIL import WebPImagePlugin
+
+        opened = []
+        original = WebPImagePlugin.WebPImageFile._open
+
+        def spy(self_):
+            opened.append(1)
+            return original(self_)
+
+        client = self.make_client()
+        with unittest.mock.patch.object(WebPImagePlugin.WebPImageFile, "_open", spy):
+            r = self.post(client, image_bytes(fmt="WEBP"), ctype="image/webp")
+        self.assertEqual(r.status_code, 415, r.text)
+        self.assertEqual(r.json()["error"]["code"], "unsupported_format")
+        self.assertEqual(opened, [])
+        self.assertEqual(self.stub.seen_sizes, [])
+
+    def test_png_bytes_sent_as_jpeg_type_still_decode_as_png(self):
+        r = self.post(self.make_client(), image_bytes(fmt="PNG"), ctype="image/jpeg")
+        self.assertEqual(r.status_code, 200, r.text)
+        self.assertEqual(r.json()["image"]["format"], "PNG")
+
+    def test_animated_png_uses_first_frame(self):
+        frames = [Image.new("RGB", (120, 80), c) for c in ("red", "blue", "green")]
+        buf = io.BytesIO()
+        frames[0].save(buf, format="PNG", save_all=True, append_images=frames[1:], duration=100)
+        client = self.make_client()
+        body = self.post(client, buf.getvalue(), ctype="image/png").json()
+        self.assertEqual((body["image"]["width"], body["image"]["height"]), (120, 80))
+        preview = Image.open(io.BytesIO(base64.b64decode(body["preview"]["data_url"].split(",", 1)[1])))
+        r, g, b = preview.convert("RGB").getpixel((60, 40))
+        self.assertGreater(r, 200)  # first frame (red), not a later one
+        self.assertLess(b, 60)
+
+
+class MultipartBodyTest(ClientMixin, unittest.TestCase):
+    def test_multipart_upload_is_not_parsed_or_spooled(self):
+        import tempfile as tf
+
+        big = Image.new("RGB", (900, 900), "white")
+        buf = io.BytesIO()
+        big.save(buf, format="PNG", compress_level=0)
+        rollovers = []
+        original = tf.SpooledTemporaryFile.rollover
+
+        def spy(self_):
+            rollovers.append(1)
+            return original(self_)
+
+        client = self.make_client()
+        with unittest.mock.patch.object(tf.SpooledTemporaryFile, "rollover", spy):
+            r = client.post("/api/detect", files={"image": ("a.png", buf.getvalue(), "image/png")})
+        self.assertEqual(r.status_code, 415)
+        self.assertEqual(rollovers, [])
+        self.assertEqual(self.stub.seen_sizes, [])
