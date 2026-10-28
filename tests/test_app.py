@@ -350,3 +350,19 @@ class MultipartBodyTest(ClientMixin, unittest.TestCase):
         self.assertEqual(r.status_code, 415)
         self.assertEqual(rollovers, [])
         self.assertEqual(self.stub.seen_sizes, [])
+
+
+class DeployInfoTest(ClientMixin, unittest.TestCase):
+    def test_commit_from_environment_when_no_git(self):
+        with unittest.mock.patch.dict(os.environ, {"FINDIT_COMMIT": "abc1234"}):
+            client = self.make_client()
+        self.assertEqual(client.get("/api/info").json()["source"]["commit"], "abc1234")
+
+    def test_static_files_are_revalidated(self):
+        # index.html, app.js and i18n.js must change together after an update; a
+        # heuristically cached old app.js next to a new index.html breaks the page.
+        client = self.make_client()
+        for path in ("/", "/static/app.js", "/static/i18n.js"):
+            r = client.get(path)
+            self.assertEqual(r.status_code, 200, path)
+            self.assertEqual(r.headers.get("cache-control"), "no-cache", path)

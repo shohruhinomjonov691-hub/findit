@@ -219,7 +219,8 @@ def create_app(settings: Settings | None = None, detector_factory: Callable | No
         except Exception as exc:  # the UI stays up and reports the model as unavailable
             state.model_error = type(exc).__name__
             log.error("model not loaded: %s", exc)
-        state.commit = git_commit()
+        # The container image has no .git; the build passes the commit in FINDIT_COMMIT.
+        state.commit = os.environ.get("FINDIT_COMMIT") or git_commit()
         yield
 
     app = FastAPI(title="FindIt", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
@@ -254,6 +255,10 @@ def create_app(settings: Settings | None = None, detector_factory: Callable | No
         response.headers["Permissions-Policy"] = "camera=(self), microphone=(), geolocation=()"
         if request.url.path.startswith("/api/"):
             response.headers["Cache-Control"] = "no-store"
+        else:
+            # Revalidate the page and its scripts on every load (ETag/Last-Modified), so an
+            # updated index.html is never combined with an old cached app.js.
+            response.headers["Cache-Control"] = "no-cache"
         return response
 
     @app.get("/api/health")

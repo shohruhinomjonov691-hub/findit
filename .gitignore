@@ -17,6 +17,8 @@ uploads/
 data/testset/
 data/derived/
 results/
+# Local browser-test copies of test images (never commit or ship)
+findit/web/_samples/
 runs/
 weights/
 

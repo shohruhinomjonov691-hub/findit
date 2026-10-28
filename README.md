@@ -34,6 +34,7 @@ Environment variables:
 | --- | --- | --- |
 | `FINDIT_MODEL` | `models/yolov8s.pt` | local weights file; URLs and missing files are refused (no download) |
 | `FINDIT_SOURCE_URL` | unset | public source link shown on the Source page (AGPL §13); unset shows "not published" |
+| `FINDIT_COMMIT` | `git describe` of the checkout | commit shown on the Source page; set by the Docker build, where there is no `.git` |
 
 ## API
 
