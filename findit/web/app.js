@@ -4,7 +4,12 @@
   const CLASS_KO = window.FINDIT_CLASS_KO;
   const SYNONYMS = window.FINDIT_SYNONYMS;
   const CATEGORIES = window.FINDIT_CATEGORIES;
-  const VIEWS = ["finder", "inspect", "how", "model", "objects", "source"];
+  const LIVE = window.FindItLive;
+  const VOICE = window.FindItVoice;
+  const VIEWS = ["finder", "live", "inspect", "how", "model", "objects", "source"];
+  const PAGE_VIEWS = ["how", "model", "objects", "source"];
+  const LIVE_MODES = ["auto", "fast", "balanced", "low"];
+  const LIVE_MAX_MS = 5 * 60 * 1000; // live stops by itself so a forgotten tab cannot load the server
   const $ = (id) => document.getElementById(id);
 
   const store = {
@@ -32,6 +37,16 @@
     busy: false,
     error: null, // { key, vars }
     toggles: Object.assign({ labels: true, scores: false, coords: false }, store.get("toggles", {})),
+    exportInfo: null, // { state: "exported" | "error", key, vars }; null = Ready
+    voiceOn: store.get("voice", false) === true,
+    voiceLast: "", // the last detection announcement that started
+    live: {
+      state: "off", // off | starting | active | paused
+      mode: LIVE_MODES.includes(store.get("liveMode", "auto")) ? store.get("liveMode", "auto") : "auto",
+      minConf: Math.min(0.8, Math.max(0.35, Number(store.get("liveMinConf", LIVE.DEFAULT_MIN_CONF)) || LIVE.DEFAULT_MIN_CONF)),
+      profile: "balanced", all: [], tracks: [], frame: null, fps: 0, latency: null, slowed: false, okStreak: 0,
+      stats: { sent: 0, skipped: 0, busy: 0 },
+    },
   };
   if (!I18N[S.lang]) S.lang = "en";
 
@@ -47,7 +62,9 @@
     const n = S.instance.get(d.id);
     return capital(className(d.class_name)) + (n ? " " + n : "");
   }
-  const locText = (d) => t(`loc.${d.cell.row}.${d.cell.col}`);
+  const locOf = (cell) => t(`loc.${cell.row}.${cell.col}`);
+  const locText = (d) => locOf(d.cell);
+  const pct = (score) => Math.round(score * 100);
   const fmtScore = (s) => s.toFixed(2);
   const fmtBox = (d) => d.bbox_xyxy.map((v) => Math.round(v)).join(", ");
 
@@ -92,6 +109,7 @@
     renderInspect();
     renderControls();
     renderBanner();
+    if (S.view === "live") renderLive();
   }
 
   function renderView() {
@@ -100,7 +118,8 @@
     $("toolbar").hidden = !work;
     $("panelFinder").hidden = S.view !== "finder";
     $("panelInspect").hidden = S.view !== "inspect";
-    for (const v of VIEWS.slice(2)) $("page-" + v).hidden = S.view !== v;
+    $("page-live").hidden = S.view !== "live";
+    for (const v of PAGE_VIEWS) $("page-" + v).hidden = S.view !== v;
     document.querySelectorAll(".nav-item").forEach((b) => {
       if (b.dataset.view === S.view) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current");
     });
@@ -205,7 +224,7 @@
       name.textContent = detLabel(d);
       const meta = document.createElement("span");
       meta.className = "result-meta";
-      meta.textContent = `${locText(d)} · ${t("score", { s: fmtScore(d.score) })}`;
+      meta.textContent = `${locText(d)} · ${t("conf", { p: pct(d.score) })}`;
       text.append(name, meta);
       const chev = document.createElement("span");
       chev.className = "chev";
@@ -256,7 +275,7 @@
     drawCrop($("cropCanvas"), d);
     $("selName").textContent = detLabel(d);
     $("selLoc").textContent = locText(d);
-    $("selScore").textContent = `${t("score", { s: fmtScore(d.score) })} — ${t("score.note")}`;
+    $("selScore").textContent = `${t("conf", { p: pct(d.score) })} (${t("score", { s: fmtScore(d.score) })}) — ${t("score.note")}`;
     const grid = $("grid3");
     grid.textContent = "";
     for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) {
@@ -264,7 +283,7 @@
       if (r === d.cell.row && c === d.cell.col) cell.className = "on";
       grid.append(cell);
     }
-    $("speakBtn").hidden = !("speechSynthesis" in window);
+    $("speakBtn").hidden = speaker.availability(S.lang) === "unsupported";
   }
 
   function exportJson() {
@@ -302,11 +321,60 @@
       box.append(c);
     }
     box.append(dl);
+    const objects = $("inspectList");
+    objects.textContent = "";
+    const shown = S.result ? visibleDetections() : [];
+    for (const o of shown) {
+      const item = document.createElement("div");
+      item.setAttribute("role", "listitem");
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "result" + (o.id === S.selected ? " is-selected" : "");
+      btn.dataset.id = o.id;
+      btn.setAttribute("aria-pressed", String(o.id === S.selected));
+      const text = document.createElement("span");
+      text.className = "result-text";
+      const name = document.createElement("span");
+      name.className = "result-name";
+      name.textContent = detLabel(o);
+      const meta = document.createElement("span");
+      meta.className = "result-meta";
+      meta.textContent = `${t("conf", { p: pct(o.score) })} · ${locText(o)}`;
+      text.append(name, meta);
+      btn.append(text);
+      item.append(btn);
+      objects.append(item);
+    }
+    if (S.result && !shown.length) {
+      const none = document.createElement("p");
+      none.className = "hint";
+      none.textContent = t("inspect.objects.none");
+      objects.append(none);
+    }
+    renderExportStatus();
     $("coordOut").textContent = d ? fmtBox(d) : "—";
     $("copyCoords").disabled = !d;
     const json = exportJson();
     $("jsonView").textContent = json ? JSON.stringify(json, null, 2) : "{}";
     ["copyJson", "downloadJson", "downloadImage"].forEach((id) => { $(id).disabled = !json; });
+  }
+
+  // Export status: Ready (a result exists), Exported (a file was saved or text copied), Error.
+  function renderExportStatus() {
+    const el = $("exportStatus");
+    let state = "ready", text = t("export.ready");
+    if (!S.result) { state = "none"; text = t("export.none"); }
+    else if (S.exportInfo && S.exportInfo.state === "exported") {
+      state = "exported"; text = t("export.exported", { what: t(S.exportInfo.key) });
+    } else if (S.exportInfo && S.exportInfo.state === "error") {
+      state = "error"; text = t("export.error", { why: t(S.exportInfo.key) });
+    }
+    el.dataset.state = state;
+    el.textContent = text;
+  }
+  function setExport(state, key) {
+    S.exportInfo = { state, key };
+    renderExportStatus();
   }
 
   function renderControls() {
@@ -393,6 +461,7 @@
   // ---------- actions ----------
   function setView(v) {
     if (!VIEWS.includes(v)) v = "finder";
+    if (v !== "live" && S.live.state !== "off") stopLive();
     S.view = v;
     if (location.hash.slice(1) !== v) history.replaceState(null, "", "#" + v);
     render();
@@ -423,7 +492,7 @@
   function errorFromCode(code) {
     const lim = S.info ? S.info.limits : { max_upload_mib: 10, max_megapixels: 40, min_side: 16, max_side: 12000 };
     const vars = { mib: lim.max_upload_mib, mp: lim.max_megapixels, min: lim.min_side, max: lim.max_side };
-    const known = ["file_too_large", "empty_file", "invalid_image", "unsupported_format", "image_dimensions", "busy", "model_unavailable"];
+    const known = ["file_too_large", "empty_file", "invalid_image", "unsupported_format", "image_dimensions", "busy", "model_unavailable", "live_disabled"];
     return known.includes(code) ? ["err." + code, vars] : ["err.server", vars];
   }
 
@@ -466,6 +535,7 @@
       S.result = body;
       S.selected = null;
       S.cls = "all";
+      S.exportInfo = null;
       buildInstances();
       const vis = visibleDetections();
       if (S.query && vis.length) S.selected = vis[0].id;
@@ -487,7 +557,10 @@
     $("cameraVideo").srcObject = null;
     if ($("cameraDialog").open) $("cameraDialog").close();
   }
+  const cameraErrorKey = (name) => (name === "NotAllowedError" || name === "SecurityError" ? "err.camera_denied"
+    : name === "NotFoundError" || name === "OverconstrainedError" ? "err.camera_missing" : "err.camera_other");
   async function openCamera() {
+    if (S.live.state !== "off") stopLive(); // one camera at a time
     if (S.busy || camera.pending || camera.stream) return;
     if (!window.isSecureContext) { showError("err.camera_insecure"); return; }
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { showError("err.camera_missing"); return; }
@@ -504,9 +577,7 @@
       $("cameraHint").textContent = t("camera.hint");
     } else if (res.status === "error") {
       closeCamera();
-      const name = res.error && res.error.name;
-      showError(name === "NotAllowedError" || name === "SecurityError" ? "err.camera_denied"
-        : name === "NotFoundError" || name === "OverconstrainedError" ? "err.camera_missing" : "err.camera_other");
+      showError(cameraErrorKey(res.error && res.error.name));
     }
   }
   function shootCamera() {
@@ -519,6 +590,355 @@
     c.toBlob((blob) => { if (blob) detect(new File([blob], "camera.jpg", { type: "image/jpeg" })); }, "image/jpeg", 0.92);
   }
 
+  // ---------- live camera + voice ----------
+  // Frames of the live camera are sent one at a time as small JPEGs. Still scenes are skipped,
+  // the speed profile follows the server's answers (Auto) and a busy server only slows the loop.
+  const liveCamera = window.FindItCamera.createCamera((c) => navigator.mediaDevices.getUserMedia(c));
+  const tracker = LIVE.createTracker();
+  const governor = LIVE.createGovernor(S.live.mode);
+  const meter = LIVE.createMeter(3000);
+  const announcer = VOICE.createAnnouncer();
+  const speaker = VOICE.createSpeaker(window.speechSynthesis, window.SpeechSynthesisUtterance, { onChange: () => renderVoice() });
+  const liveEls = new Map(); // track id -> overlay element (kept so boxes glide instead of blinking)
+  let liveRun = 0; // changes on every start and stop; a running loop stops when its number is old
+  let liveAbort = null;
+  let liveStartedAt = 0;
+  let lastSentAt = 0;
+  let prevGray = null;
+  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  function liveLabel(tr) {
+    return `${capital(className(tr.class_name))} ${pct(tr.score)}% · ${locOf(tr.cell)}`;
+  }
+
+  function renderLive() {
+    const st = S.live.state;
+    $("liveEmpty").hidden = st !== "off";
+    $("liveWrap").hidden = !(st === "active" || st === "paused");
+    $("liveLoading").hidden = st !== "starting";
+    $("liveToggle").textContent = t(st === "off" ? "live.start" : "live.stop");
+    $("liveToggle").disabled = S.busy && st === "off";
+    $("liveStartBig").disabled = S.busy;
+    $("liveMode").value = S.live.mode;
+    $("liveConf").value = String(Math.round(S.live.minConf * 100));
+    $("liveConfValue").textContent = Math.round(S.live.minConf * 100) + "%";
+    const label = $("liveState");
+    label.dataset.state = st;
+    label.textContent = st === "active" ? t("live.state.active", { mode: t("live.mode." + S.live.profile) })
+      : t("live.state." + st);
+    renderLiveStatus();
+    renderLiveOverlay();
+    renderLiveList();
+    renderVoice();
+  }
+
+  function renderLiveStatus() {
+    const l = S.live;
+    $("liveMetrics").textContent = l.state === "active" && l.latency !== null
+      ? t("live.metrics", { fps: l.fps.toFixed(1), ms: Math.round(l.latency) }) : t("live.metrics.none");
+    $("liveStats").textContent = l.state === "off" ? "" : t("live.stats", l.stats);
+    const slowed = $("liveSlowed");
+    slowed.hidden = !(l.state === "active" && l.slowed);
+    slowed.textContent = slowed.hidden ? "" : t("live.slowed");
+  }
+
+  function renderLiveOverlay() {
+    const host = $("liveOverlay");
+    const f = S.live.frame;
+    const tracks = S.live.state === "off" || !f ? [] : S.live.tracks;
+    const seen = new Set();
+    for (const tr of tracks) {
+      seen.add(tr.id);
+      let el = liveEls.get(tr.id);
+      if (!el) {
+        el = document.createElement("div");
+        const tag = document.createElement("span");
+        el.append(tag);
+        host.append(el);
+        liveEls.set(tr.id, el);
+      }
+      // Where the object is by now: the answer is some 100-300 ms older than the picture.
+      const [x1, y1, x2, y2] = LIVE.projectBox(tr, performance.now()).map((v, k) => Math.max(0, Math.min(k % 2 ? f.h : f.w, v)));
+      el.className = "live-box" + (x1 / f.w > 0.5 ? " flip" : "") + (tr.misses > 0 ? " stale" : "");
+      el.style.left = (x1 / f.w) * 100 + "%";
+      el.style.top = (y1 / f.h) * 100 + "%";
+      el.style.width = ((x2 - x1) / f.w) * 100 + "%";
+      el.style.height = ((y2 - y1) / f.h) * 100 + "%";
+      const tag = el.children[0];
+      tag.className = "box-tag" + (y1 / f.h < 0.06 ? " inside" : "");
+      tag.textContent = liveLabel(tr);
+    }
+    for (const [id, el] of liveEls) {
+      if (!seen.has(id)) { el.remove(); liveEls.delete(id); }
+    }
+  }
+
+  function renderLiveList() {
+    const list = $("liveList");
+    list.textContent = "";
+    const tracks = S.live.state === "off" ? [] : S.live.tracks;
+    for (const tr of tracks) {
+      const item = document.createElement("div");
+      item.setAttribute("role", "listitem");
+      const row = document.createElement("div");
+      row.className = "result";
+      const text = document.createElement("span");
+      text.className = "result-text";
+      const name = document.createElement("span");
+      name.className = "result-name";
+      name.textContent = capital(className(tr.class_name));
+      const meta = document.createElement("span");
+      meta.className = "result-meta";
+      meta.textContent = `${pct(tr.score)}% · ${locOf(tr.cell)}`;
+      text.append(name, meta);
+      row.append(text);
+      item.append(row);
+      list.append(item);
+    }
+    $("liveNone").hidden = !(S.live.state === "active" && !tracks.length);
+  }
+
+  // Voice states: "on" | "off" (muted) | "unavailable" (no speech support, no voice for the
+  // language, or the browser failed to speak). The picture keeps working in every state.
+  function voiceStatus() {
+    if (speaker.availability(S.lang) !== "ok") return "unavailable";
+    return S.voiceOn ? "on" : "off";
+  }
+
+  function renderVoice() {
+    const st = voiceStatus();
+    const av = speaker.availability(S.lang);
+    const btn = $("voiceToggle");
+    btn.disabled = av === "unsupported" || av === "no_voice";
+    btn.setAttribute("aria-checked", String(st === "on"));
+    btn.dataset.state = st;
+    $("voiceLabel").textContent = st === "on" ? t("voice.on", { lang: S.lang.toUpperCase() })
+      : st === "off" ? t("voice.off") : t("voice.unavailable");
+    $("voiceTest").disabled = av === "unsupported" || av === "no_voice";
+    const why = $("voiceWhy");
+    why.hidden = av === "ok";
+    const key = av === "error" && speaker.lastError === "not-allowed" ? "blocked" : av;
+    why.textContent = av === "ok" ? "" : t("voice.why." + key, { lang: S.lang === "ko" ? "한국어" : "English" });
+    renderVoiceNote();
+  }
+
+  // Tells why nothing is heard when voice is on: waiting, or no object above the confidence limit.
+  function renderVoiceNote() {
+    const note = $("voiceNote");
+    let text = "";
+    if (voiceStatus() === "on" && S.live.state === "active") {
+      text = S.voiceLast ? t("voice.last", { text: S.voiceLast })
+        : S.live.tracks.length ? t("voice.waiting") : t("voice.nothing", { p: Math.round(S.live.minConf * 100) });
+    }
+    note.hidden = !text;
+    note.textContent = text;
+  }
+
+  // Keep explicit speech requests in their click handler so they retain user activation.
+  function speakFromClick(text) {
+    if (speaker.availability(S.lang) === "error") speaker.resetError();
+    if (speaker.availability(S.lang) === "ok") speaker.speak(text, S.lang);
+    renderVoice();
+  }
+
+  // The sample plays on request even when automatic announcements are muted.
+  function testVoice() {
+    const text = VOICE.sentence(S.lang, [{ name: className("cup"), score: 0.9, cell: { row: 1, col: 2 } }]);
+    speakFromClick(text);
+  }
+
+  function toggleVoice() {
+    if (speaker.availability(S.lang) === "error") { speaker.resetError(); S.voiceOn = false; } // retry
+    if (speaker.availability(S.lang) !== "ok") { renderVoice(); return; }
+    S.voiceOn = !S.voiceOn;
+    store.set("voice", S.voiceOn);
+    S.voiceLast = "";
+    if (S.voiceOn) {
+      announcer.reset();
+      speakFromClick(t("voice.hello"));
+    } else {
+      speaker.cancel();
+      renderVoice();
+    }
+  }
+
+  function voiceStep(tracks, now) {
+    if (!S.voiceOn || S.live.state !== "active" || speaker.availability(S.lang) !== "ok" || speaker.speaking) return;
+    const items = announcer.pick(tracks, now);
+    if (!items.length) return;
+    const text = VOICE.sentence(S.lang, items.map((tr) => ({ name: className(tr.class_name), score: tr.score, cell: tr.cell })));
+    speaker.speak(text, S.lang, () => {
+      announcer.mark(items, performance.now());
+      S.voiceLast = text;
+      renderVoiceNote();
+    });
+  }
+
+  function stopLive() {
+    liveRun++;
+    if (liveAbort) { liveAbort.abort(); liveAbort = null; }
+    liveCamera.close();
+    $("liveVideo").srcObject = null;
+    speaker.cancel();
+    S.voiceLast = "";
+    tracker.reset(); meter.reset(); announcer.reset();
+    prevGray = null;
+    const was = S.live.state;
+    Object.assign(S.live, { state: "off", all: [], tracks: [], frame: null, fps: 0, latency: null, slowed: false, okStreak: 0 });
+    if (was !== "off") $("live").textContent = t("live.state.off");
+    if (S.view === "live") renderLive();
+  }
+
+  async function startLive() {
+    if (S.live.state !== "off" || S.busy) return;
+    if ($("cameraDialog").open || camera.pending || camera.stream) return;
+    if (S.info && S.info.live && !S.info.live.enabled) { showError("err.live_disabled"); return; }
+    if (S.info && !S.info.model.loaded) { showError("err.model_unavailable"); return; }
+    if (!window.isSecureContext) { showError("err.camera_insecure"); return; }
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { showError("err.camera_missing"); return; }
+    S.error = null;
+    renderBanner();
+    const run = ++liveRun;
+    S.live.stats = { sent: 0, skipped: 0, busy: 0 };
+    S.live.state = "starting";
+    renderLive();
+    // A low resolution is enough for the model and keeps the work per frame small.
+    const res = await liveCamera.open({ video: { facingMode: { ideal: "environment" }, width: { ideal: 640 }, height: { ideal: 480 } }, audio: false });
+    if (run !== liveRun) return; // stopped while waiting for permission; the late stream is already stopped
+    if (res.status !== "open") {
+      stopLive();
+      if (res.status === "error") showError(cameraErrorKey(res.error && res.error.name));
+      return;
+    }
+    $("liveVideo").srcObject = res.stream;
+    for (const track of res.stream.getTracks()) {
+      if (track.kind !== "video") continue;
+      track.onended = () => { if (run === liveRun) { stopLive(); showError("err.live_stream_lost"); } };
+    }
+    governor.setMode(S.live.mode);
+    liveStartedAt = performance.now();
+    lastSentAt = 0;
+    S.live.state = document.hidden ? "paused" : "active"; // the tab may have been hidden while waiting for permission
+    S.live.profile = governor.profile().name;
+    $("live").textContent = t("live.state.active", { mode: t("live.mode." + S.live.profile) });
+    renderLive();
+    liveLoop(run);
+    paintLoop(run);
+  }
+
+  // Boxes are placed again on every animation frame so they follow the picture between answers.
+  function paintLoop(run) {
+    if (!window.requestAnimationFrame) return;
+    const tick = () => {
+      if (run !== liveRun) return;
+      if (S.live.state === "active" && S.live.tracks.length) renderLiveOverlay();
+      window.requestAnimationFrame(tick);
+    };
+    window.requestAnimationFrame(tick);
+  }
+
+  function grabFrame(video, canvas, profile) {
+    const scale = Math.min(1, profile.frame / Math.max(video.videoWidth, video.videoHeight));
+    canvas.width = Math.max(16, Math.round(video.videoWidth * scale));
+    canvas.height = Math.max(16, Math.round(video.videoHeight * scale));
+    canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height);
+    return new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", profile.quality));
+  }
+
+  // Tracks that are kept (steadied) vs drawn (filtered by confidence); both come from the same list.
+  function refreshLiveTracks() {
+    S.live.tracks = S.live.frame ? LIVE.filterTracks(S.live.all, S.live.frame, S.live.minConf) : [];
+  }
+
+  function onLiveResult(body, latency, now) {
+    const frame = { w: body.image.width, h: body.image.height };
+    S.live.frame = frame;
+    S.live.all = tracker.update(body.detections, frame, now, now - latency);
+    refreshLiveTracks();
+    meter.push(now, latency);
+    S.live.fps = meter.fps(now);
+    S.live.latency = meter.latency;
+    if (++S.live.okStreak >= 5) S.live.slowed = false;
+    renderLiveOverlay();
+    renderLiveList();
+    renderLiveStatus();
+    voiceStep(S.live.tracks, now);
+    renderVoiceNote();
+  }
+
+  async function liveLoop(run) {
+    const frameCanvas = document.createElement("canvas");
+    const tiny = document.createElement("canvas");
+    tiny.width = 32; tiny.height = 24;
+    const tinyCtx = tiny.getContext("2d", { willReadFrequently: true });
+    const video = $("liveVideo");
+    let failures = 0;
+    while (run === liveRun) {
+      if (S.live.state === "paused") { await sleep(250); continue; }
+      if (performance.now() - liveStartedAt > LIVE_MAX_MS) { stopLive(); showError("live.timeout"); return; }
+      if (!video.videoWidth) { await sleep(100); continue; }
+      // Cheap local check first: a picture that did not change is not worth a server request.
+      tinyCtx.drawImage(video, 0, 0, 32, 24);
+      const gray = LIVE.toGray(tinyCtx.getImageData(0, 0, 32, 24).data);
+      const t0 = performance.now();
+      if (!LIVE.shouldSend(LIVE.motionScore(prevGray, gray), t0 - lastSentAt)) {
+        S.live.stats.skipped++;
+        tracker.settle(); // a still picture: boxes stop where the objects are
+        LIVE.settleTracks(S.live.all); // ... including the copies that are drawn
+        renderLiveStatus();
+        await sleep(120);
+        continue;
+      }
+      const profile = governor.profile();
+      S.live.profile = profile.name;
+      const blob = await grabFrame(video, frameCanvas, profile);
+      if (run !== liveRun) return;
+      if (!blob) { await sleep(200); continue; }
+      prevGray = gray;
+      lastSentAt = t0;
+      S.live.stats.sent++;
+      liveAbort = new AbortController();
+      let retry = null;
+      try {
+        const res = await fetch(`/api/detect/live?imgsz=${profile.imgsz}`, {
+          method: "POST", body: blob, headers: { "Content-Type": "image/jpeg" }, signal: liveAbort.signal,
+        });
+        let body = null;
+        try { body = await res.json(); } catch { body = null; }
+        if (run !== liveRun) return;
+        const now = performance.now();
+        const code = body && body.error ? body.error.code : "";
+        if (res.ok && body && body.image) {
+          failures = 0;
+          governor.record({ ok: true, latencyMs: now - t0 }, now);
+          onLiveResult(body, now - t0, now);
+        } else if ((res.status === 503 && code === "busy") || res.status === 429) {
+          // 503 from the app (detector busy / duty cap), or 429 from a rate limit in front of it.
+          S.live.stats.busy++;
+          S.live.slowed = true; S.live.okStreak = 0;
+          governor.record({ busy: true }, now);
+          retry = (body && body.error && body.error.retry_ms) || Number(res.headers && res.headers.get && res.headers.get("Retry-After")) * 1000 || 1000;
+        } else if (code === "live_disabled" || code === "model_unavailable") {
+          stopLive(); showError(...errorFromCode(code)); return;
+        } else if (++failures >= 3) {
+          stopLive(); showError(...errorFromCode(code)); return;
+        } else {
+          retry = 1000;
+        }
+      } catch {
+        if (run !== liveRun) return; // aborted by stopLive
+        if (++failures >= 3) { stopLive(); showError("err.network"); return; }
+        retry = 1000;
+      }
+      liveAbort = null;
+      S.live.profile = governor.profile().name;
+      renderLiveStatus();
+      const label = $("liveState");
+      if (S.live.state === "active") label.textContent = t("live.state.active", { mode: t("live.mode." + S.live.profile) });
+      await sleep(LIVE.nextDelayMs(profile, performance.now() - t0, retry));
+    }
+  }
+
   function download(blob, name) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -527,9 +947,10 @@
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
-  async function copyText(text, btn) {
+  async function copyText(text, btn, what) {
     try { await navigator.clipboard.writeText(text); }
-    catch { return; }
+    catch { setExport("error", "export.why.clipboard"); return; }
+    setExport("exported", what);
     const old = btn.textContent;
     btn.textContent = t("copied");
     setTimeout(() => { btn.textContent = old; }, 1200);
@@ -593,7 +1014,11 @@
     document.querySelectorAll(".nav-item").forEach((b) => b.addEventListener("click", () => setView(b.dataset.view)));
     window.addEventListener("hashchange", () => setView(location.hash.slice(1)));
     document.querySelectorAll(".lang-btn").forEach((b) => b.addEventListener("click", () => {
-      S.lang = b.dataset.lang; store.set("lang", S.lang); applyStaticText(); renderInfo(); render();
+      if (S.lang === b.dataset.lang) return;
+      S.lang = b.dataset.lang; store.set("lang", S.lang);
+      speaker.cancel(); speaker.resetError(); announcer.reset(); S.voiceLast = "";
+      applyStaticText(); renderInfo(); render();
+      voiceStep(S.live.tracks, performance.now());
     }));
 
     const pick = () => { if (!S.busy) $("fileInput").click(); };
@@ -655,33 +1080,68 @@
     document.addEventListener("keydown", (e) => {
       const typing = /^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName);
       if (e.key === "Escape" && $("cameraDialog").open) { e.preventDefault(); closeCamera(); }
-      else if (e.key === "/" && !typing && !$("cameraDialog").open) { e.preventDefault(); $("search").focus(); }
+      else if (e.key === "/" && !typing && !$("cameraDialog").open && S.view !== "live") { e.preventDefault(); $("search").focus(); }
       else if (e.key === "Escape" && !$("cameraDialog").open) {
-        if (S.error) { S.error = null; renderBanner(); }
+        if (S.live.state !== "off") stopLive();
+        else if (S.error) { S.error = null; renderBanner(); }
         else if (S.selected !== null) { S.selected = null; render(); }
       }
     });
 
     $("speakBtn").addEventListener("click", () => {
       const d = selectedDet();
-      if (!d || !("speechSynthesis" in window)) return;
-      const u = new SpeechSynthesisUtterance(t("speak.text", { name: detLabel(d), loc: locText(d) }));
-      u.lang = S.lang === "ko" ? "ko-KR" : "en-US";
-      speechSynthesis.cancel();
-      speechSynthesis.speak(u);
+      if (!d) return;
+      speakFromClick(t("speak.text", { name: detLabel(d), loc: locText(d), p: pct(d.score) }));
     });
     $("bannerClose").addEventListener("click", () => { S.error = null; renderBanner(); });
 
-    $("copyCoords").addEventListener("click", (e) => { const d = selectedDet(); if (d) copyText(fmtBox(d), e.currentTarget); });
-    $("copyJson").addEventListener("click", (e) => copyText(JSON.stringify(exportJson(), null, 2), e.currentTarget));
+    $("copyCoords").addEventListener("click", (e) => { const d = selectedDet(); if (d) copyText(fmtBox(d), e.currentTarget, "export.what.coords"); });
+    $("copyJson").addEventListener("click", (e) => copyText(JSON.stringify(exportJson(), null, 2), e.currentTarget, "export.what.copyjson"));
     $("downloadJson").addEventListener("click", () => {
       download(new Blob([JSON.stringify(exportJson(), null, 2)], { type: "application/json" }), "findit-detections.json");
+      setExport("exported", "export.what.json");
     });
     $("downloadImage").addEventListener("click", async () => {
       if (!S.result) return;
-      const blob = await annotatedBlob();
-      if (blob) download(blob, "findit-annotated.jpg");
+      let blob = null;
+      try { blob = await annotatedBlob(); } catch { blob = null; }
+      if (!blob) { setExport("error", "export.why.image"); return; }
+      download(blob, "findit-annotated.jpg");
+      setExport("exported", "export.what.image");
     });
+    $("inspectList").addEventListener("click", (e) => {
+      const b = e.target.closest(".result");
+      if (b) select(Number(b.dataset.id));
+    });
+
+    $("liveToggle").addEventListener("click", () => (S.live.state === "off" ? startLive() : stopLive()));
+    $("liveStartBig").addEventListener("click", startLive);
+    $("liveMode").addEventListener("change", (e) => {
+      S.live.mode = LIVE_MODES.includes(e.target.value) ? e.target.value : "auto";
+      store.set("liveMode", S.live.mode);
+      governor.setMode(S.live.mode);
+      renderLive();
+    });
+    $("liveConf").addEventListener("input", (e) => {
+      S.live.minConf = Math.min(0.8, Math.max(0.35, Number(e.target.value) / 100 || LIVE.DEFAULT_MIN_CONF));
+      store.set("liveMinConf", S.live.minConf);
+      refreshLiveTracks();
+      renderLive();
+    });
+    $("voiceToggle").addEventListener("click", toggleVoice);
+    $("voiceTest").addEventListener("click", testVoice);
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden && S.live.state === "active") {
+        S.live.state = "paused"; speaker.cancel(); renderLive();
+      } else if (!document.hidden && S.live.state === "paused") {
+        tracker.reset(); announcer.reset(); prevGray = null; S.live.all = []; S.live.tracks = [];
+        S.live.state = "active"; renderLive();
+      }
+    });
+    window.addEventListener("pagehide", stopLive);
+    if (window.speechSynthesis && window.speechSynthesis.addEventListener) {
+      window.speechSynthesis.addEventListener("voiceschanged", renderVoice);
+    }
 
     $("cameraShoot").addEventListener("click", shootCamera);
     $("cameraCancel").addEventListener("click", closeCamera);

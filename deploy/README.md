@@ -94,10 +94,31 @@ level `warn`) is kept for diagnostics; when an error occurs Nginx may write clie
 metadata such as the IP address, request line and host there. Nginx is not configured to
 log request bodies, and the proxy does not buffer request or response bodies to disk.
 
+## Live camera mode on the server
+
+`POST /api/detect/live` runs YOLOv8s on the server CPU for every accepted frame. The app
+runs one inference at a time and gives queued uploads priority over new live frames.
+An upload can wait behind the live frame already running. The app refuses new live frames
+when live work reaches `FINDIT_LIVE_DUTY` (default 0.6) of the last 2 s. Admitted frames
+run to completion and count toward the budget even if their request is cancelled.
+
+On a development Mac with one Uvicorn worker and `OMP_NUM_THREADS=2`, four clients sent
+512 × 288 JPEGs at `imgsz=512` without pacing for 12 s. The app accepted 126 requests and
+refused 27,101 with `503 busy` in a median of 1.4 ms. All three concurrent uploads returned
+`200` in 123–138 ms, compared with 76–95 ms at idle. These measurements cover local Uvicorn.
+To reduce live load, lower `FINDIT_LIVE_DUTY` in `.env` or set `FINDIT_LIVE=0`, then run
+`docker compose up -d`.
+
+The cap is global, not per client. A per-IP limit in Nginx (`limit_req_zone` in `conf.d`
+plus `limit_req` on `location = /api/detect/live`) would stop one client from using all of it;
+the browser treats `429` like `busy`. That Nginx change is **not included and not tested** here
+(Docker was not running when this was written, so `check-config.sh` could not be run).
+
 ## 4. Smoke and rollback
 
 - `https://<domain>/`: upload a JPEG, search, select, export; Source page shows the repo
-  URL and commit. The camera needs HTTPS, so this is the first place it can work on a phone.
+  URL and commit. The camera needs HTTPS, so this is the first place it can work on a phone
+  (check Live camera there too: `Live Active`, FPS/latency, voice on a phone browser).
 - Rollback: `git checkout <previous commit>`, update `FINDIT_COMMIT` in `.env`,
   `docker compose up -d --build --wait`. Removing FindIt: `docker compose down`, remove
   `conf.d/findit.conf` and the snippet, reload Nginx.

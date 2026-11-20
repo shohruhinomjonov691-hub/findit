@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import os
 import time
 from dataclasses import asdict, dataclass
@@ -28,21 +29,47 @@ class Detection:
     bbox_xyxy: list[float]
 
 
-def load_oriented(path: Path, formats: tuple[str, ...] | None = None) -> tuple[Image.Image, dict]:
+def load_oriented(
+    path: Path, formats: tuple[str, ...] | None = None, max_pixels: int | None = None
+) -> tuple[Image.Image, dict]:
     """Open an image, apply EXIF orientation and return it as RGB plus size metadata.
 
     For a multi-frame file (animated PNG) only the first frame is used.
+
+    With `max_pixels`, an image larger than that is decoded at a reduced size (JPEG: the
+    decoder's own 1/2, 1/4, 1/8 scaling; otherwise an integer box reduction right after
+    loading), so the full-size pixel buffer is never copied several times. The returned
+    image is then smaller than the original; `meta["width"]`/`["height"]` always describe the
+    original upright image, and `meta["analysis_scale"]` is original size / returned size
+    (1.0 when nothing was reduced), so boxes can be mapped back.
     """
     with pil_open(path, formats=formats) as raw:
         raw_size = raw.size
         orientation = raw.getexif().get(EXIF_ORIENTATION_TAG, 1)
-        img = ImageOps.exif_transpose(raw).convert("RGB")
+        # Upright size of the original (EXIF 5-8 swap the sides).
+        width, height = raw_size[::-1] if orientation in (5, 6, 7, 8) else raw_size
+        work = raw
+        if max_pixels and raw_size[0] * raw_size[1] > max_pixels:
+            factor = math.ceil(math.sqrt(raw_size[0] * raw_size[1] / max_pixels))
+            if raw.format == "JPEG":
+                raw.draft("RGB", (max(1, raw_size[0] // factor), max(1, raw_size[1] // factor)))
+            if raw.width * raw.height > max_pixels:
+                if raw.mode not in ("RGB", "L"):
+                    raw = raw.convert("RGB")
+                reduce_by = math.ceil(math.sqrt(raw.width * raw.height / max_pixels))
+                work = raw.reduce(reduce_by)
+            else:
+                work = raw
+        img = ImageOps.exif_transpose(work)
+        if img.mode != "RGB":
+            img = img.convert("RGB")
     meta = {
         "raw_width": raw_size[0],
         "raw_height": raw_size[1],
         "exif_orientation": orientation,
-        "width": img.width,
-        "height": img.height,
+        "width": width,
+        "height": height,
+        "analysis_scale": width / img.width,
     }
     return img, meta
 
@@ -95,16 +122,26 @@ class Detector:
         self.agnostic_nms = agnostic_nms
         self.class_names = dict(self.model.names)
 
-    def detect(self, img: Image.Image) -> tuple[list[Detection], dict]:
+    def detect(
+        self,
+        img: Image.Image,
+        imgsz: int | None = None,
+        conf: float | None = None,
+        max_det: int | None = None,
+    ) -> tuple[list[Detection], dict]:
+        """Run the model once. `imgsz`, `conf` and `max_det` override the defaults for this call
+        only (the live endpoint uses a smaller input size and a higher threshold)."""
         t0 = time.perf_counter()
+        extra = {} if max_det is None else {"max_det": max_det}
         # A PIL image is passed so Ultralytics handles the RGB->BGR conversion itself.
         result = self.model.predict(
             img,
-            imgsz=self.imgsz,
-            conf=self.conf,
+            imgsz=imgsz or self.imgsz,
+            conf=self.conf if conf is None else conf,
             device=self.device,
             agnostic_nms=self.agnostic_nms,
             verbose=False,
+            **extra,
         )[0]
         wall_ms = (time.perf_counter() - t0) * 1000
         assert tuple(result.orig_shape) == (img.height, img.width)
