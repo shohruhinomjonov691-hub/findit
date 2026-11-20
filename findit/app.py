@@ -10,12 +10,15 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import dataclasses
 import hashlib
 import io
 import logging
+import math
 import os
 import subprocess
 import time
+from collections import deque
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -34,6 +37,44 @@ WEB_DIR = Path(__file__).resolve().parent / "web"
 log = logging.getLogger("findit")
 
 
+_ENV_TRUE = {"1", "true", "on", "yes"}
+_ENV_FALSE = {"0", "false", "off", "no"}
+DEFAULT_LIVE_DUTY = 0.6
+
+
+def env_flag(name: str, default: bool) -> bool:
+    """On/off setting from the environment. Unset or empty: the default. An unrecognised value
+    keeps the default (and says so in the log) instead of silently meaning "on" or crashing."""
+    raw = os.environ.get(name)
+    if raw is None or not raw.strip():
+        return default
+    value = raw.strip().lower()
+    if value in _ENV_TRUE:
+        return True
+    if value in _ENV_FALSE:
+        return False
+    log.warning("%s=%r is not recognised (use 0/false/off/no or 1/true/on/yes); keeping %s", name, raw[:40], default)
+    return default
+
+
+def env_duty(name: str, default: float) -> float:
+    """Share of time (0 < x <= 1) from the environment. A value that is not a number, is not finite
+    or lies outside the range is ignored with a warning: a typo must neither stop the app from
+    starting nor remove the protection (0 would refuse every frame, 5 would cap nothing)."""
+    raw = os.environ.get(name)
+    if raw is None or not raw.strip():
+        return default
+    try:
+        value = float(raw)
+    except ValueError:
+        value = math.nan
+    if not (math.isfinite(value) and 0 < value <= 1):
+        log.warning("%s=%r must be a number above 0 and at most 1; using %s (FINDIT_LIVE=0 switches live off)",
+                    name, raw[:40], default)
+        return default
+    return value
+
+
 @dataclass
 class Settings:
     model_path: Path = field(default_factory=lambda: Path(os.environ.get("FINDIT_MODEL", ROOT / "models" / "yolov8s.pt")))
@@ -48,13 +89,30 @@ class Settings:
     # being opened, before the limits below can be checked.
     allowed_formats: tuple[str, ...] = ("JPEG", "PNG")
     preview_max_side: int = 2048
+    # Images above this many pixels are decoded at reduced size (box coordinates are mapped back
+    # to the original), so a 40 MP upload does not need several full-size copies in memory.
+    # Anything up to this size (e.g. 4000x3000) is analysed exactly as before.
+    analysis_pixels: int = 16_000_000
     max_waiting: int = 4
+    # Live camera mode (POST /api/detect/live): small JPEG frames, smaller model input,
+    # and a duty-cycle cap so a live session can never keep the CPU busy all the time.
+    # FINDIT_LIVE=0 switches the endpoint off.
+    live_enabled: bool = field(default_factory=lambda: env_flag("FINDIT_LIVE", True))
+    live_conf: float = 0.35
+    live_imgsz_options: tuple[int, ...] = (320, 416, 512)
+    live_max_bytes: int = 512 * 1024
+    live_max_side: int = 1024
+    live_max_pixels: int = 1_000_000
+    # Refuse new live frames once recent live work reaches this share of the window.
+    live_max_duty: float = field(default_factory=lambda: env_duty("FINDIT_LIVE_DUTY", DEFAULT_LIVE_DUTY))
+    live_duty_window_s: float = 2.0
+    live_max_det: int = 20
     source_url: str | None = field(default_factory=lambda: os.environ.get("FINDIT_SOURCE_URL") or None)
 
 
 class ApiError(Exception):
-    def __init__(self, status: int, code: str, message: str):
-        self.status, self.code, self.message = status, code, message
+    def __init__(self, status: int, code: str, message: str, retry_ms: int | None = None):
+        self.status, self.code, self.message, self.retry_ms = status, code, message, retry_ms
 
 
 def git_commit() -> str | None:
@@ -83,7 +141,8 @@ async def read_limited(request: Request, limit: int) -> bytes:
     multipart parser reads the whole upload before the handler runs and spools parts
     above 1 MiB to a temporary file on disk.
     """
-    too_large = ApiError(413, "file_too_large", f"Image is larger than {limit // (1024 * 1024)} MiB.")
+    size = f"{limit // (1024 * 1024)} MiB" if limit >= 1024 * 1024 else f"{limit // 1024} KiB"
+    too_large = ApiError(413, "file_too_large", f"Image is larger than {size}.")
     declared = request.headers.get("content-length")
     if declared and declared.isdigit() and int(declared) > limit:
         raise too_large
@@ -135,7 +194,7 @@ def decode_image(data: bytes, s: Settings) -> tuple[Image.Image, dict]:
             f"Image must be {s.min_side}–{s.max_side} px per side and at most {s.max_pixels // 1_000_000} MP.",
         )
     try:
-        img, meta = load_oriented(io.BytesIO(data), formats=(fmt,))
+        img, meta = load_oriented(io.BytesIO(data), formats=(fmt,), max_pixels=s.analysis_pixels)
     except (OSError, SyntaxError, ValueError, Image.DecompressionBombError):
         raise ApiError(415, "invalid_image", "The image data is damaged or incomplete.")
     meta["format"] = fmt
@@ -155,6 +214,17 @@ def grid_cell(cx: float, cy: float, w: int, h: int) -> dict:
     col = min(2, int(3 * cx / w))
     row = min(2, int(3 * cy / h))
     return {"row": row, "col": col}
+
+
+def scale_detections(detections, sx: float, sy: float):
+    """Map boxes found on a reduced image back to the original upright pixel frame."""
+    if sx == 1 and sy == 1:
+        return detections
+    return [
+        dataclasses.replace(d, bbox_xyxy=[round(d.bbox_xyxy[0] * sx, 1), round(d.bbox_xyxy[1] * sy, 1),
+                                          round(d.bbox_xyxy[2] * sx, 1), round(d.bbox_xyxy[3] * sy, 1)])
+        for d in detections
+    ]
 
 
 def detection_payload(detections, width: int, height: int) -> list[dict]:
@@ -179,6 +249,45 @@ def detection_payload(detections, width: int, height: int) -> list[dict]:
     return items
 
 
+class LiveBudget:
+    """Drop new frames once recent live work reaches `max_duty` of `window_s`.
+
+    An admitted frame runs to completion. Called from the event loop only.
+    """
+
+    def __init__(self, max_duty: float, window_s: float, clock: Callable[[], float] = time.monotonic):
+        self.max_duty, self.window_s, self.clock = max_duty, window_s, clock
+        self.spans: deque[tuple[float, float]] = deque()  # (end, duration)
+
+    def _busy(self, now: float) -> float:
+        start = now - self.window_s
+        while self.spans and self.spans[0][0] <= start:
+            self.spans.popleft()
+        return sum(min(d, end - start) for end, d in self.spans)
+
+    def retry_after_ms(self) -> int:
+        """0 when a live frame may run now, otherwise a rough wait until it may."""
+        now = self.clock()
+        excess = self._busy(now) - self.max_duty * self.window_s
+        if excess < 0:
+            return 0
+        # The oldest spans leave the window first; wait at least until enough of them have.
+        start, freed = now - self.window_s, 0.0
+        for end, d in self.spans:
+            freed += min(d, end - start)
+            if freed > excess:
+                return max(100, int((end - start + 0.05) * 1000))
+        return int(self.window_s * 1000)
+
+    def record(self, duration_s: float) -> None:
+        self.spans.append((self.clock(), duration_s))
+
+    def check(self) -> None:
+        wait_ms = self.retry_after_ms()
+        if wait_ms:
+            raise ApiError(503, "busy", "Live detection is paused to protect the server.", retry_ms=wait_ms)
+
+
 class InferenceGate:
     """One inference at a time; at most `max_waiting` requests queued behind it."""
 
@@ -187,13 +296,39 @@ class InferenceGate:
         self.max_waiting = max_waiting
         self.pending = 0
 
-    async def run(self, fn: Callable, *args):
+    async def try_run(self, fn: Callable, *args, budget: LiveBudget | None = None):
+        """Like run(), but never waits: a live frame is dropped while anything else is
+        running or queued. A live budget is checked again after reading the body."""
+        if self.lock.locked() or self.pending > 0:
+            raise ApiError(503, "busy", "The detector is busy. Please try again in a moment.", retry_ms=500)
+        if budget is not None:
+            budget.check()
+        return await self.run(fn, *args, on_finish=budget.record if budget is not None else None)
+
+    async def run(self, fn: Callable, *args, on_finish: Callable[[float], None] | None = None):
         if self.pending >= self.max_waiting + 1:
             raise ApiError(503, "busy", "The detector is busy. Please try again in a moment.")
         self.pending += 1
         try:
             async with self.lock:
-                return await run_in_threadpool(fn, *args)
+                started = time.monotonic()
+                fut = asyncio.ensure_future(run_in_threadpool(fn, *args))
+                try:
+                    return await asyncio.shield(fut)
+                except asyncio.CancelledError:
+                    # The client went away, but the worker thread cannot be stopped and the
+                    # model is not thread-safe: keep the slot until the thread has finished.
+                    while not fut.done():
+                        try:
+                            await asyncio.wait([fut])
+                        except asyncio.CancelledError:
+                            pass
+                    if not fut.cancelled():
+                        fut.exception()  # mark as retrieved
+                    raise
+                finally:
+                    if on_finish is not None:
+                        on_finish(time.monotonic() - started)
         finally:
             self.pending -= 1
 
@@ -226,11 +361,19 @@ def create_app(settings: Settings | None = None, detector_factory: Callable | No
     app = FastAPI(title="FindIt", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
     app.state.gate = InferenceGate(s.max_waiting)
     app.state.settings = s
+    app.state.live_budget = LiveBudget(s.live_max_duty, s.live_duty_window_s)
+    live_limits = dataclasses.replace(
+        s, allowed_formats=("JPEG",), max_side=s.live_max_side, max_pixels=s.live_max_pixels,
+    )
 
     @app.exception_handler(ApiError)
     async def api_error(_: Request, exc: ApiError):
-        return JSONResponse({"error": {"code": exc.code, "message": exc.message}}, status_code=exc.status)
-
+        error = {"code": exc.code, "message": exc.message}
+        headers = {}
+        if exc.retry_ms is not None:
+            error["retry_ms"] = exc.retry_ms
+            headers["Retry-After"] = str(max(1, -(-exc.retry_ms // 1000)))
+        return JSONResponse({"error": error}, status_code=exc.status, headers=headers)
 
     @app.middleware("http")
     async def security_headers(request: Request, call_next):
@@ -287,6 +430,13 @@ def create_app(settings: Settings | None = None, detector_factory: Callable | No
                 "max_side": s.max_side,
                 "formats": list(s.allowed_formats),
             },
+            "live": {
+                "enabled": s.live_enabled,
+                "imgsz": list(s.live_imgsz_options),
+                "conf_threshold": s.live_conf,
+                "max_frame_kib": s.live_max_bytes // 1024,
+                "max_duty": s.live_max_duty,
+            },
             "source": {"url": s.source_url, "commit": app.state.commit, "license": "AGPL-3.0"},
         }
 
@@ -301,6 +451,7 @@ def create_app(settings: Settings | None = None, detector_factory: Callable | No
             t0 = time.perf_counter()
             img, meta = decode_image(data, s)
             detections, timing = det.detect(img)
+            detections = scale_detections(detections, meta["width"] / img.width, meta["height"] / img.height)
             preview, preview_size = preview_data_url(img, s.preview_max_side)
             return img, meta, detections, timing, preview, preview_size, (time.perf_counter() - t0) * 1000
 
@@ -317,6 +468,39 @@ def create_app(settings: Settings | None = None, detector_factory: Callable | No
                 "format": meta["format"],
             },
             "preview": {"data_url": preview, "width": preview_size[0], "height": preview_size[1]},
+            "detections": detection_payload(detections, meta["width"], meta["height"]),
+            "timing": {"inference_ms": timing["wall_ms"], "server_ms": round(server_ms, 1)},
+        }
+
+    @app.post("/api/detect/live")
+    async def detect_live(request: Request, imgsz: int | None = None):
+        """One small JPEG frame from the live camera. No preview is returned and nothing is
+        queued: if the detector is busy or the duty-cycle cap is reached the frame is refused
+        with 503 `busy` and a retry hint, and the browser simply tries a later frame."""
+        if not s.live_enabled:
+            raise ApiError(404, "live_disabled", "Live detection is switched off on this server.")
+        det = app.state.detector
+        if det is None:
+            raise ApiError(503, "model_unavailable", "The detection model is not loaded on the server.")
+        size = imgsz if imgsz is not None else s.live_imgsz_options[0]
+        if size not in s.live_imgsz_options:
+            raise ApiError(400, "bad_parameter", f"imgsz must be one of {list(s.live_imgsz_options)}.")
+        budget = app.state.live_budget
+        budget.check()
+        data = await read_limited(request, s.live_max_bytes)
+
+        def work():
+            t0 = time.perf_counter()
+            img, meta = decode_image(data, live_limits)
+            detections, timing = det.detect(img, imgsz=size, conf=s.live_conf, max_det=s.live_max_det)
+            return meta, detections, timing, time.perf_counter() - t0
+
+        meta, detections, timing, spent_s = await app.state.gate.try_run(work, budget=budget)
+        server_ms = spent_s * 1000
+        return {
+            "image": {"width": meta["width"], "height": meta["height"]},
+            "imgsz": size,
+            "conf_threshold": s.live_conf,
             "detections": detection_payload(detections, meta["width"], meta["height"]),
             "timing": {"inference_ms": timing["wall_ms"], "server_ms": round(server_ms, 1)},
         }

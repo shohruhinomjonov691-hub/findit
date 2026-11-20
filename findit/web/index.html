@@ -9,6 +9,8 @@
   <script src="/static/i18n.js" defer></script>
   <script src="/static/search.js" defer></script>
   <script src="/static/camera.js" defer></script>
+  <script src="/static/live.js" defer></script>
+  <script src="/static/voice.js" defer></script>
   <script src="/static/app.js" defer></script>
 </head>
 <body>
@@ -18,20 +20,23 @@
       <div class="brand-name">FindIt</div>
       <div class="brand-tag" data-i18n="tagline">Find. Filter. Focus.</div>
     </div>
+    <div class="lang" role="group" data-i18n-aria="lang.label" aria-label="Language">
+      <span class="lang-label" data-i18n="lang.label">Language</span>
+      <span class="lang-seg">
+        <button class="lang-btn" data-lang="en" lang="en" title="English">EN</button>
+        <button class="lang-btn" data-lang="ko" lang="ko" title="한국어">KO</button>
+      </span>
+    </div>
     <nav class="nav" aria-label="Main">
       <button class="nav-item" data-view="finder"><span class="nav-num">01</span><span data-i18n="nav.finder">Finder</span></button>
-      <button class="nav-item" data-view="inspect"><span class="nav-num">02</span><span data-i18n="nav.inspect">Inspect &amp; Export</span></button>
-      <button class="nav-item" data-view="how"><span class="nav-num">03</span><span data-i18n="nav.how">How it works</span></button>
-      <button class="nav-item" data-view="model"><span class="nav-num">04</span><span data-i18n="nav.model">Model details</span></button>
+      <button class="nav-item" data-view="live"><span class="nav-num">02</span><span data-i18n="nav.live">Live camera</span></button>
+      <button class="nav-item" data-view="inspect"><span class="nav-num">03</span><span data-i18n="nav.inspect">Inspect &amp; Export</span></button>
+      <button class="nav-item" data-view="how"><span class="nav-num">04</span><span data-i18n="nav.how">How it works</span></button>
+      <button class="nav-item" data-view="model"><span class="nav-num">05</span><span data-i18n="nav.model">Model details</span></button>
       <div class="nav-sep" role="presentation"></div>
       <button class="nav-item" data-view="objects"><span class="nav-icon" aria-hidden="true">◎</span><span data-i18n="nav.objects">Supported objects</span></button>
       <button class="nav-item" data-view="source"><span class="nav-icon" aria-hidden="true">⟨⟩</span><span data-i18n="nav.source">Source</span></button>
     </nav>
-    <div class="lang" role="group" aria-label="Language">
-      <button class="lang-btn" data-lang="en">EN</button>
-      <span aria-hidden="true">|</span>
-      <button class="lang-btn" data-lang="ko">한국어</button>
-    </div>
   </aside>
 
   <main class="main">
@@ -122,6 +127,10 @@
         <h2 class="panel-title" id="inspectTitle" data-i18n="inspect.title">Inspect &amp; Export</h2>
         <div class="inspect-selected" id="inspectSelected"></div>
         <div class="field">
+          <div class="field-label" data-i18n="inspect.objects">Detected objects</div>
+          <div class="results" id="inspectList" role="list"></div>
+        </div>
+        <div class="field">
           <div class="field-label" data-i18n="inspect.coords">Coordinates (x1, y1, x2, y2)</div>
           <div class="field-row">
             <output class="mono" id="coordOut">—</output>
@@ -138,17 +147,89 @@
           </div>
           <pre class="json" id="jsonView" tabindex="0"></pre>
         </div>
+        <div class="export-status" role="status">
+          <span class="field-label" data-i18n="export.title">Export status</span>
+          <span class="export-badge" id="exportStatus" data-state="none"></span>
+        </div>
         <button class="btn btn-wide" id="downloadImage"><span aria-hidden="true">⤓</span> <span data-i18n="downloadImage">Download annotated image</span></button>
         <p class="hint" data-i18n="inspect.note">Boxes use pixel coordinates of the upright (EXIF-corrected) original image. The annotated image is drawn on the preview size.</p>
         <div class="controls" id="controlsInspect"></div>
       </aside>
     </section>
 
+    <section class="workspace" id="page-live" hidden>
+      <div class="stage live-stage" id="liveStage">
+        <div class="stage-empty" id="liveEmpty">
+          <div class="empty-mark" aria-hidden="true">◉</div>
+          <h1 data-i18n="live.title">Live camera</h1>
+          <p data-i18n="live.empty">Point your camera at objects and FindIt names them continuously, with confidence and position.</p>
+          <div class="empty-actions">
+            <button class="btn btn-primary" id="liveStartBig" data-i18n="live.start">Start live</button>
+          </div>
+          <p class="hint" data-i18n="live.privacy">While Live is on, small camera frames are sent to the server and not stored.</p>
+        </div>
+        <div class="canvas-wrap live-wrap" id="liveWrap" hidden>
+          <video id="liveVideo" playsinline muted autoplay></video>
+          <div class="overlay" id="liveOverlay"></div>
+        </div>
+        <div class="stage-loading" id="liveLoading" hidden>
+          <div class="spinner" aria-hidden="true"></div>
+          <span data-i18n="live.state.starting">Starting camera…</span>
+        </div>
+      </div>
+
+      <aside class="panel" aria-labelledby="liveListTitle">
+        <div class="lang lang-inline" role="group" data-i18n-aria="lang.label" aria-label="Language">
+          <span class="lang-label" data-i18n="lang.label">Language</span>
+          <span class="lang-seg">
+            <button class="lang-btn" data-lang="en" lang="en" title="English">EN</button>
+            <button class="lang-btn" data-lang="ko" lang="ko" title="한국어">KO</button>
+          </span>
+        </div>
+        <div class="live-status">
+          <div class="live-state" id="liveState" data-state="off"></div>
+          <div class="live-metrics mono" id="liveMetrics"></div>
+          <div class="timing" id="liveStats"></div>
+          <div class="live-slowed" id="liveSlowed" hidden></div>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" id="liveToggle"></button>
+          <label class="sort">
+            <span data-i18n="live.mode.label">Speed mode</span>
+            <select id="liveMode">
+              <option value="auto" data-i18n="live.mode.auto">Auto</option>
+              <option value="fast" data-i18n="live.mode.fast">Fast</option>
+              <option value="balanced" data-i18n="live.mode.balanced">Balanced</option>
+              <option value="low" data-i18n="live.mode.low">Low-Power</option>
+            </select>
+          </label>
+        </div>
+        <label class="conf-box">
+          <span><span data-i18n="live.conf">Minimum confidence</span> <output id="liveConfValue">45%</output></span>
+          <input type="range" id="liveConf" min="35" max="80" step="5" value="45">
+        </label>
+        <div class="voice-box">
+          <div class="voice-row">
+            <button type="button" class="toggle" id="voiceToggle" role="switch" aria-checked="false">
+              <span class="switch" aria-hidden="true"></span><span id="voiceLabel"></span>
+            </button>
+            <button type="button" class="btn btn-small" id="voiceTest" data-i18n="voice.test">Test voice</button>
+          </div>
+          <p class="hint" id="voiceWhy" hidden></p>
+          <p class="hint" id="voiceNote" hidden></p>
+        </div>
+        <h2 class="panel-sub" id="liveListTitle" data-i18n="live.list.title">Detected now</h2>
+        <div class="results" id="liveList" role="list"></div>
+        <p class="notfound" id="liveNone" data-i18n="live.none">Nothing detected right now.</p>
+        <p class="hint" data-i18n="live.privacy">While Live is on, small camera frames are sent to the server and not stored.</p>
+      </aside>
+    </section>
+
     <section class="page" id="page-how" hidden>
       <h1 data-i18n="how.title">How it works</h1>
       <ol class="steps">
-        <li><strong data-i18n="how.s1">1. Capture</strong><span data-i18n="how.s1b">Upload an image or take one frame from your camera. Nothing runs continuously.</span></li>
-        <li><strong data-i18n="how.s2">2. Detect</strong><span data-i18n="how.s2b">The server runs a pretrained YOLOv8s model once on the image and returns boxes, class names and scores.</span></li>
+        <li><strong data-i18n="how.s1">1. Capture</strong><span data-i18n="how.s1b">Upload an image, take one frame from your camera, or turn on Live to detect continuously while the camera is on.</span></li>
+        <li><strong data-i18n="how.s2">2. Detect</strong><span data-i18n="how.s2b">The server runs a pretrained YOLOv8s model on the image (or, in Live, on small frames) and returns boxes, class names and scores.</span></li>
         <li><strong data-i18n="how.s3">3. Filter</strong><span data-i18n="how.s3b">Search by name, pick a category or class, and sort by score, name or box area.</span></li>
         <li><strong data-i18n="how.s4">4. Focus</strong><span data-i18n="how.s4b">Select an object to highlight it, see a close-up, its 3×3 position and coordinates, or hear its location.</span></li>
       </ol>
@@ -159,7 +240,8 @@
         <li data-i18n="limits.3">The score is the model's confidence, not a guarantee that the label is correct.</li>
         <li data-i18n="limits.4">Only the 80 COCO object classes can be found. No custom training was done.</li>
         <li data-i18n="limits.5">FindIt has no accuracy benchmark (no mAP measured). A 20-image feasibility check is in the repository docs.</li>
-        <li data-i18n="limits.6">Images are processed in memory and not stored.</li>
+        <li data-i18n="limits.6">Images and live frames are processed in memory and not stored.</li>
+        <li data-i18n="limits.7">Live detection runs on the server's CPU, so its speed depends on the server and may drop when it is busy. COCO has no pen or flower class.</li>
       </ul>
     </section>
 
