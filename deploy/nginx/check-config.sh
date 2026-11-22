@@ -14,6 +14,7 @@ chmod 644 "$work/"*.pem
 check() {  # site file
   docker run --rm \
     -v "$PWD/findit-proxy.conf:/etc/nginx/snippets/findit-proxy.conf:ro" \
+    -v "$PWD/findit-limits.conf:/etc/nginx/conf.d/findit-limits.conf:ro" \
     -v "$PWD/$1:/etc/nginx/conf.d/default.conf:ro" \
     -v "$work:/etc/letsencrypt/live/$domain:ro" \
     --entrypoint nginx "$image" -t 2>&1 | grep -E "syntax is ok|test is successful|emerg|warn" || true

@@ -39,8 +39,8 @@ class RealModelTest(unittest.TestCase):
         self.assertEqual((b["image"]["width"], b["image"]["height"]), (a["image"]["width"], a["image"]["height"]))
         self.assertEqual(b["image"]["exif_orientation"], 6)
         self.assertEqual([d["class_name"] for d in a["detections"]], [d["class_name"] for d in b["detections"]])
-        for da, db in zip(a["detections"], b["detections"]):
-            self.assertLess(max(abs(x - y) for x, y in zip(da["bbox_xyxy"], db["bbox_xyxy"])), 2.0)
+        for da, db in zip(a["detections"], b["detections"], strict=True):
+            self.assertLess(max(abs(x - y) for x, y in zip(da["bbox_xyxy"], db["bbox_xyxy"], strict=True)), 2.0)
         names = {d["class_name"] for d in a["detections"]}
         self.assertTrue({"cell phone", "laptop"} <= names, names)
         self.assertGreater(a["timing"]["inference_ms"], 0)

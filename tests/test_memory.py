@@ -42,7 +42,9 @@ class ReducedDecodeApiTest(ClientMixin, unittest.TestCase):
     def check_mapped(self, body, width, height):
         self.assertEqual((body["image"]["width"], body["image"]["height"]), (width, height))
         x1, y1, x2, y2 = body["detections"][0]["bbox_xyxy"]
-        for got, want in zip((x1, y1, x2, y2), (0.1 * width, 0.2 * height, 0.5 * width, 0.6 * height)):
+        for got, want in zip(
+            (x1, y1, x2, y2), (0.1 * width, 0.2 * height, 0.5 * width, 0.6 * height), strict=True
+        ):
             self.assertAlmostEqual(got, want, delta=2.0)
 
     def test_large_jpeg_is_analysed_reduced_but_reported_in_original_frame(self):

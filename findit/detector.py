@@ -148,7 +148,9 @@ class Detector:
 
         detections = []
         boxes = result.boxes
-        for xyxy, cls, score in zip(boxes.xyxy.tolist(), boxes.cls.tolist(), boxes.conf.tolist()):
+        for xyxy, cls, score in zip(
+            boxes.xyxy.tolist(), boxes.cls.tolist(), boxes.conf.tolist(), strict=True
+        ):
             detections.append(
                 Detection(
                     class_id=int(cls),

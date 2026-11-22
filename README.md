@@ -39,7 +39,7 @@ Environment variables:
 | `FINDIT_SOURCE_URL` | unset | public source link shown on the Source page (AGPL §13); unset shows "not published" |
 | `FINDIT_COMMIT` | `git describe` of the checkout | commit shown on the Source page; set by the Docker build, where there is no `.git` |
 | `FINDIT_LIVE` | `1` | `0`, `false`, `off` or `no` switch the live endpoint off (the Live page then reports it); `1`, `true`, `on`, `yes` keep it on; any other value keeps it on and logs a warning |
-| `FINDIT_LIVE_DUTY` | `0.6` | refuse new live frames when work reaches this share of the last 2 s; above 0 and at most 1. Anything else (text, `0`, `5`, `nan`) is ignored with a warning and `0.6` is used, so a typo can neither stop the app nor remove the limit |
+| `FINDIT_LIVE_DUTY` | `0.6` (`0.35` in `compose.yaml`, recommended for the shared server) | refuse new live frames when work reaches this share of the last 2 s; above 0 and at most 1. Anything else (text, `0`, `5`, `nan`) is ignored with a warning and `0.6` is used, so a typo can neither stop the app nor remove the limit |
 
 ## Live camera and voice
 
@@ -92,7 +92,8 @@ Open **Live camera**, press *Start live* and allow the camera (HTTPS or `localho
 
 ## Deployment
 
-Not deployed. Docker/Compose/Nginx files and a runbook are in [deploy/](deploy/README.md);
+Runs in Docker (container `findit`) behind Nginx at https://findit.gotrips.cloud. The
+Docker/Compose/Nginx files and the update runbook are in [deploy/](deploy/README.md);
 the YOLOv8s weights are mounted read-only from the host and never enter the image or git.
 
 ## API

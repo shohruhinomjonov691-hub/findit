@@ -185,7 +185,7 @@ def decode_image(data: bytes, s: Settings) -> tuple[Image.Image, dict]:
         with pil_open(io.BytesIO(data), formats=[fmt]) as probe:
             fmt, (w, h) = probe.format, probe.size
     except (OSError, SyntaxError, ValueError, Image.DecompressionBombError):
-        raise ApiError(415, "invalid_image", "The file is not a readable image.")
+        raise ApiError(415, "invalid_image", "The file is not a readable image.") from None
     if fmt not in s.allowed_formats:
         raise ApiError(415, "unsupported_format", "Only JPEG and PNG images are supported.")
     if min(w, h) < s.min_side or max(w, h) > s.max_side or w * h > s.max_pixels:
@@ -196,7 +196,7 @@ def decode_image(data: bytes, s: Settings) -> tuple[Image.Image, dict]:
     try:
         img, meta = load_oriented(io.BytesIO(data), formats=(fmt,), max_pixels=s.analysis_pixels)
     except (OSError, SyntaxError, ValueError, Image.DecompressionBombError):
-        raise ApiError(415, "invalid_image", "The image data is damaged or incomplete.")
+        raise ApiError(415, "invalid_image", "The image data is damaged or incomplete.") from None
     meta["format"] = fmt
     return img, meta
 
